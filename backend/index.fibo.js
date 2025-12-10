@@ -35,7 +35,7 @@ if (!BRIA_API_TOKEN) {
   process.exit(1);
 }
 
-console.log("✅ Enhanced Bria API Token configured");
+console.log("✅ Bria API Token configured");
 console.log("🌐 Generation API:", BRIA_BASE_URL);
 console.log("🎨 Image Edit API:", BRIA_EDIT_BASE_URL);
 
@@ -148,8 +148,6 @@ async function pollBriaStatus(requestId, maxAttempts = 60) {
   throw new Error("Request timeout - please try again");
 }
 
-// ====== GENERATION ENDPOINT ======
-
 /**
  * Generate new image with transparent background
  */
@@ -174,13 +172,13 @@ app.post("/api/generate", async (req, res) => {
 
     console.log(`🎨 Starting generation: "${prompt}"`);
 
-    // Optimize prompt for T-shirt design
+    // Optimize prompt for T-shirt design (no background mentioned to let API decide)
     const optimizedPrompt = `${prompt}, clean design suitable for t-shirt printing`;
     
     // Call Bria image generation API
     const generateResult = await briaRequest(`${BRIA_BASE_URL}/image/generate`, {
       prompt: optimizedPrompt,
-      sync: false
+      sync: false // Use async mode
     });
 
     if (!generateResult.success) {
@@ -205,7 +203,7 @@ app.post("/api/generate", async (req, res) => {
     
     console.log(`🎨 Generation completed, now making background transparent...`);
     
-    // Automatically remove background to ensure transparency
+    // STEP 2: Automatically remove background to ensure transparency
     const backgroundRemovalResult = await briaRequest(`${BRIA_EDIT_BASE_URL}/remove_background`, {
       image: pollResult.imageUrl,
       sync: false
@@ -213,6 +211,7 @@ app.post("/api/generate", async (req, res) => {
 
     if (!backgroundRemovalResult.success) {
       console.warn(`⚠️  Background removal failed, using original image: ${backgroundRemovalResult.error?.message}`);
+      // Use original image if background removal fails
       var finalImageUrl = pollResult.imageUrl;
       var finalResult = pollResult.result;
     } else {
@@ -227,28 +226,33 @@ app.post("/api/generate", async (req, res) => {
     const filename = `generated_${request_id}_${Date.now()}.png`;
     const localUrl = await downloadAndSaveImage(finalImageUrl, filename);
 
-    // Store structured_prompt and generation artifacts
+    // CRITICAL: Store structured_prompt and generation artifacts
     const generationData = {
       request_id,
       original_prompt: prompt,
       optimized_prompt: optimizedPrompt,
       structured_prompt: pollResult.result?.structured_prompt || finalResult?.structured_prompt || null,
       seed: pollResult.result?.seed || finalResult?.seed || null,
-      image_url: finalImageUrl,
-      original_with_bg_url: pollResult.imageUrl,
-      local_url: localUrl,
+      image_url: finalImageUrl, // Final transparent image URL
+      original_with_bg_url: pollResult.imageUrl, // Original with background (if different)
+      local_url: localUrl, // Local cached URL
       has_transparent_bg: finalImageUrl !== pollResult.imageUrl,
       created_at: new Date().toISOString()
     };
     
-    // Store for refinement use
-    generationCache.set(finalImageUrl, generationData);
-    generationCache.set(localUrl, generationData);
+    // Store for refinement use (both URLs point to same data)
+    generationCache.set(finalImageUrl, generationData); // Final transparent URL
+    generationCache.set(localUrl, generationData); // Local URL
     if (pollResult.imageUrl !== finalImageUrl) {
-      generationCache.set(pollResult.imageUrl, generationData);
+      generationCache.set(pollResult.imageUrl, generationData); // Original URL if different
     }
     
-    console.log(`💾 Stored generation data for enhanced refinement`);
+    console.log(`💾 Stored generation data for URLs:`);
+    console.log(`   - Final (transparent): ${finalImageUrl}`);
+    console.log(`   - Local: ${localUrl}`);
+    if (pollResult.imageUrl !== finalImageUrl) {
+      console.log(`   - Original (with bg): ${pollResult.imageUrl}`);
+    }
     if (generationData.structured_prompt) {
       console.log(`📋 Structured prompt preserved (${generationData.structured_prompt.length} chars)`);
     }
@@ -274,8 +278,6 @@ app.post("/api/generate", async (req, res) => {
   }
 });
 
-// ====== ENHANCED REFINEMENT SYSTEM ======
-
 /**
  * Enhanced refinement using hybrid mask-based and structured prompt approach
  */
@@ -298,10 +300,10 @@ app.post("/api/refine", async (req, res) => {
       });
     }
 
-    console.log(`🔧 Starting enhanced hybrid refinement: "${instruction}"`);
+    console.log(`🔧 Starting enhanced refinement: "${instruction}"`);
     console.log(`🖼️  Original image: ${imageUrl}`);
 
-    // Retrieve original generation data
+    // CRITICAL: Retrieve original generation data
     let originalData = generationCache.get(imageUrl);
     
     if (!originalData) {
@@ -316,7 +318,10 @@ app.post("/api/refine", async (req, res) => {
     if (!originalData) {
       console.warn(`⚠️  No generation data found for ${imageUrl} - using fallback approach`);
     } else {
-      console.log(`✅ Found original generation data with structured prompt: ${!!originalData.structured_prompt}`);
+      console.log(`✅ Found original generation data:`);
+      console.log(`   - Request ID: ${originalData.request_id}`);
+      console.log(`   - Original prompt: ${originalData.original_prompt}`);
+      console.log(`   - Structured prompt: ${originalData.structured_prompt ? 'Available' : 'Not available'}`);
     }
 
     // Use original Bria URL for API calls
@@ -340,6 +345,7 @@ app.post("/api/refine", async (req, res) => {
     } else if (refinementPlan.strategy === 'multi_step') {
       refinementResult = await performMultiStepRefinement(apiImageUrl, instruction, originalData, refinementPlan);
     } else {
+      // Default to enhanced structured prompt refinement
       refinementResult = await performEnhancedStructuredRefinement(apiImageUrl, instruction, originalData, refinementPlan);
     }
 
@@ -376,7 +382,7 @@ app.post("/api/refine", async (req, res) => {
 
     res.json({
       success: true,
-      message: "Image refined successfully with enhanced system",
+      message: "Image refined successfully",
       refinedImageUrl: localUrl,
       originalUrl: refinementResult.imageUrl,
       editType: refinementResult.edit_type || refinementPlan.strategy,
@@ -385,21 +391,18 @@ app.post("/api/refine", async (req, res) => {
         original_data_preserved: !!originalData,
         method_used: refinementPlan.strategy,
         operations_count: refinementPlan.operations.length,
-        supports_localized_editing: refinementPlan.strategy === 'mask_based',
-        unusual_edits_supported: refinementPlan.operations.some(op => op.specificity === 'very_high')
+        supports_localized_editing: refinementPlan.strategy === 'mask_based'
       }
     });
 
   } catch (error) {
-    console.error("Enhanced refinement error:", error.message);
+    console.error("Refinement error:", error.message);
     res.status(500).json({
       success: false,
       error: { message: error.message }
     });
   }
 });
-
-// ====== REFINEMENT STRATEGY FUNCTIONS ======
 
 /**
  * Analyze refinement instruction and determine optimal strategy
@@ -415,149 +418,242 @@ async function analyzeRefinementInstruction(instruction, originalData) {
     };
   }
   
-  // Parse instruction for advanced analysis
-  const parsedInstruction = parseInstructionAdvanced(instruction);
+  // Enhanced multi-edit detection
+  const multiEditPatterns = [
+    ' and ', ' & ', ' plus ', ' also ', ' then ',
+    /add\s+\w+.*add\s+\w+/i,  // Multiple "add" statements
+    /,\s*add/i,               // Comma-separated additions
+    /\w+\s+and\s+\w+/i        // General "X and Y" pattern
+  ];
   
-  // Check for multi-edit instructions
-  if (parsedInstruction.complexity === 'multi_step') {
-    return {
-      strategy: 'multi_step',
-      operations: parsedInstruction.modifications
-    };
+  const hasMultipleEdits = multiEditPatterns.some(pattern => {
+    if (typeof pattern === 'string') {
+      return lowerInstruction.includes(pattern);
+    } else {
+      return pattern.test(instruction);
+    }
+  });
+  
+  if (hasMultipleEdits) {
+    const operations = parseMultipleOperations(instruction);
+    // Only use multi-step if we actually found multiple operations
+    if (operations.length > 1) {
+      return {
+        strategy: 'multi_step',
+        operations
+      };
+    }
   }
   
   // Check for localized edits that benefit from mask-based approach
-  if (parsedInstruction.requires_masking) {
+  const localizedKeywords = [
+    'add blood', 'add crack', 'add scar', 'add drip', 'add tear',
+    'change tooth', 'change eye', 'change nose', 'change ear',
+    'add to nose', 'add to eye', 'add to mouth', 'add to forehead',
+    'paint on', 'draw on', 'scratch on', 'mark on'
+  ];
+  
+  const isLocalizedEdit = localizedKeywords.some(keyword => 
+    lowerInstruction.includes(keyword)
+  );
+  
+  if (isLocalizedEdit) {
     return {
       strategy: 'mask_based',
-      operations: parsedInstruction.modifications
+      operations: [{ type: 'localized_edit', instruction, target: extractEditTarget(instruction) }]
     };
   }
   
   // Default to enhanced structured prompt approach
   return {
     strategy: 'structured_prompt',
-    operations: parsedInstruction.modifications
+    operations: [{ type: 'structured_modification', instruction }]
   };
 }
 
 /**
- * Advanced instruction parsing with better NLP
+ * Parse multiple operations from complex instructions with improved parsing
  */
-function parseInstructionAdvanced(instruction) {
-  const lowerInstruction = instruction.toLowerCase();
-  const modifications = [];
+function parseMultipleOperations(instruction) {
+  const operations = [];
   
-  // 1. Addition operations
-  if (lowerInstruction.includes('add')) {
-    const additionMatch = lowerInstruction.match(/add\s+(?:a\s+|an\s+)?(.+?)(?:\s+to\s+(.+?))?(?:\s+and|$)/);
-    if (additionMatch) {
-      const item = additionMatch[1].trim();
-      const location = additionMatch[2] ? additionMatch[2].trim() : null;
-      
-      modifications.push({
-        type: 'addition',
-        item: item,
-        location: location,
-        specificity: determineSpecificity(item, location)
-      });
+  console.log(`🔍 Parsing multi-edit instruction: "${instruction}"`);
+  
+  // Enhanced splitting patterns to handle various conjunctions
+  let parts = instruction.split(/\s+and\s+|\s*&\s*|\s*,\s*|\s+plus\s+|\s+also\s+/i);
+  
+  // If no clear separators found, try to detect multiple "add" statements
+  if (parts.length === 1) {
+    // Look for multiple "add" statements in the same sentence
+    const addMatches = instruction.match(/add\s+[^,]+/gi);
+    if (addMatches && addMatches.length > 1) {
+      parts = addMatches;
     }
   }
   
-  // 2. Color change operations
-  if (lowerInstruction.includes('change') && lowerInstruction.includes('color')) {
-    const colorMatch = lowerInstruction.match(/change\s+(?:the\s+)?(.+?)\s+color\s+to\s+(\w+)/);
-    if (colorMatch) {
-      modifications.push({
-        type: 'color_change',
-        target: colorMatch[1].trim(),
-        new_color: colorMatch[2].trim(),
-        specificity: 'high'
-      });
+  for (let part of parts) {
+    part = part.trim();
+    if (part.length === 0) continue;
+    
+    // Clean up the part (remove leading conjunctions)
+    part = part.replace(/^(and|also|plus|then)\s+/i, '');
+    
+    // Determine operation type for each part
+    const lowerPart = part.toLowerCase();
+    
+    let operationType;
+    if (lowerPart.includes('background')) {
+      operationType = 'background_edit';
+    } else if (lowerPart.includes('add') || lowerPart.includes('put') || lowerPart.includes('place')) {
+      operationType = 'object_edit';
+    } else if (lowerPart.includes('change') || lowerPart.includes('modify') || lowerPart.includes('make')) {
+      operationType = 'object_edit';
+    } else if (lowerPart.includes('remove') || lowerPart.includes('delete')) {
+      operationType = 'object_edit';
+    } else {
+      operationType = 'general_edit';
     }
-  }
-  
-  // 3. Background operations
-  if (lowerInstruction.includes('background')) {
-    modifications.push({
-      type: 'background_change',
-      description: extractBackgroundDescription(instruction),
-      specificity: 'medium'
+    
+    operations.push({ 
+      type: operationType, 
+      instruction: part,
+      target: extractEditTarget(part)
     });
+    
+    console.log(`   - Parsed: "${part}" as ${operationType}`);
   }
   
-  // 4. Texture/material operations (blood, cracks, etc.)
-  const textureKeywords = ['blood', 'crack', 'scar', 'drip', 'paint', 'glow', 'shine', 'rust'];
-  for (const keyword of textureKeywords) {
-    if (lowerInstruction.includes(keyword)) {
-      modifications.push({
-        type: 'texture_addition',
-        texture: keyword,
-        target: extractTextureTarget(instruction, keyword),
-        specificity: 'very_high'
-      });
-    }
-  }
-  
-  // Parse multi-edit instructions (AND, comma-separated)
-  const hasMultipleEdits = lowerInstruction.includes(' and ') || 
-                          lowerInstruction.includes(' & ') ||
-                          (lowerInstruction.split(',').length > 1);
-  
-  return {
-    modifications,
-    complexity: hasMultipleEdits || modifications.length > 1 ? 'multi_step' : 'single_step',
-    requires_masking: modifications.some(m => m.specificity === 'very_high')
-  };
+  console.log(`✅ Parsed ${operations.length} operations from multi-edit instruction`);
+  return operations;
 }
 
 /**
- * Determine specificity level for masking decisions
+ * Extract edit target from localized edit instructions
  */
-function determineSpecificity(item, location) {
-  const highSpecificityItems = ['blood', 'crack', 'scar', 'eye', 'tooth', 'nail'];
-  const mediumSpecificityItems = ['hat', 'cigar', 'glasses', 'jewelry'];
-  
-  if (highSpecificityItems.some(keyword => item.includes(keyword))) {
-    return 'very_high';
-  } else if (mediumSpecificityItems.some(keyword => item.includes(keyword))) {
-    return 'high';
-  } else if (location) {
-    return 'medium';
-  } else {
-    return 'low';
-  }
-}
-
-/**
- * Extract texture target from instruction
- */
-function extractTextureTarget(instruction, texture) {
+function extractEditTarget(instruction) {
   const lowerInstruction = instruction.toLowerCase();
-  const targetMatch = lowerInstruction.match(new RegExp(`${texture}\\s+(?:to|on)\\s+(?:the\\s+)?(.+?)(?:\\s|$)`));
   
-  if (targetMatch) {
-    return targetMatch[1].trim();
-  }
+  // Body parts and objects that can be targeted
+  const targets = [
+    'nose', 'eye', 'mouth', 'tooth', 'teeth', 'ear', 'forehead', 'cheek',
+    'hat', 'shirt', 'face', 'hand', 'arm', 'leg', 'foot', 'head',
+    'skull', 'bone', 'wing', 'tail', 'paw', 'claw', 'sunglasses', 'cigar',
+    'glasses', 'cigarette', 'pipe', 'necklace', 'earring', 'bracelet'
+  ];
   
-  // Common body parts and objects
-  const commonTargets = ['nose', 'face', 'head', 'hand', 'arm', 'leg', 'chest', 'skull', 'tooth', 'eye'];
-  for (const target of commonTargets) {
+  for (const target of targets) {
     if (lowerInstruction.includes(target)) {
       return target;
     }
   }
   
-  return null;
+  return 'unknown';
 }
 
-// ====== REFINEMENT IMPLEMENTATION FUNCTIONS ======
+/**
+ * Create intelligent object description from instruction for multi-edit support
+ */
+function createIntelligentObject(instruction) {
+  const lowerInstruction = instruction.toLowerCase();
+  
+  console.log(`🎨 Creating object for: "${instruction}"`);
+  
+  // Enhanced object templates for better multi-edit support
+  if (lowerInstruction.includes('hat')) {
+    return {
+      description: "A stylish hat positioned naturally on the character's head, fitting the existing style and proportions.",
+      location: "top-center, on head",
+      relationship: "Worn by the main character.",
+      relative_size: "proportional to character head",
+      shape_and_color: "Hat-appropriate shape and complementary color",
+      texture: "Suitable hat material (fabric, leather, or straw)",
+      appearance_details: "Natural positioning, maintains character style, realistic shadows",
+      number_of_objects: 1,
+      orientation: "Upright, following head angle"
+    };
+  } else if (lowerInstruction.includes('sunglasses') || lowerInstruction.includes('glasses')) {
+    return {
+      description: "Stylish sunglasses positioned naturally on the character's face, fitting the eye area perfectly.",
+      location: "center-face, over eyes",
+      relationship: "Worn by the main character on their face.",
+      relative_size: "proportional to face and eye area",
+      shape_and_color: "Classic sunglasses shape with dark lenses",
+      texture: "Smooth plastic or metal frame with reflective lenses",
+      appearance_details: "Natural positioning on nose bridge, realistic reflections on lenses",
+      number_of_objects: 1,
+      orientation: "Horizontal, following face angle"
+    };
+  } else if (lowerInstruction.includes('cigar') || lowerInstruction.includes('cigarette')) {
+    return {
+      description: "A cigar held naturally by the character, positioned appropriately for the character's pose.",
+      location: "near mouth or in hand",
+      relationship: "Held or positioned by the main character.",
+      relative_size: "proportional, realistic cigar size",
+      shape_and_color: "Cylindrical cigar shape, brown tobacco color",
+      texture: "Tobacco leaf texture with natural wrapping",
+      appearance_details: "Realistic cigar appearance, natural positioning, subtle smoke wisps",
+      number_of_objects: 1,
+      orientation: "Appropriate to character pose and hand position"
+    };
+  } else if (lowerInstruction.includes('necklace') || lowerInstruction.includes('chain')) {
+    return {
+      description: "An elegant necklace worn naturally around the character's neck.",
+      location: "around neck area",
+      relationship: "Worn by the main character.",
+      relative_size: "proportional to neck and chest area",
+      shape_and_color: "Chain or beaded necklace with appropriate metallic color",
+      texture: "Metallic or beaded texture with realistic shine",
+      appearance_details: "Natural draping around neck, realistic weight and movement",
+      number_of_objects: 1,
+      orientation: "Following neck curve and gravity"
+    };
+  } else if (lowerInstruction.includes('earring')) {
+    return {
+      description: "Stylish earrings positioned naturally on the character's ears.",
+      location: "on ears",
+      relationship: "Worn by the main character.",
+      relative_size: "proportional to ear size",
+      shape_and_color: "Earring-appropriate shape and metallic color",
+      texture: "Metallic or gemstone texture with shine",
+      appearance_details: "Natural positioning on earlobes, realistic reflections",
+      number_of_objects: 2,
+      orientation: "Hanging naturally from ears"
+    };
+  } else if (lowerInstruction.includes('eye')) {
+    return {
+      description: "An eye positioned naturally in the eye socket, matching the character's style and proportions.",
+      location: "eye socket area",
+      relationship: "Part of the main character's face.",
+      relative_size: "proportional to face",
+      shape_and_color: "Eye-shaped, appropriate color for character",
+      texture: "Natural eye texture with realistic iris and pupil",
+      appearance_details: "Realistic eye appearance, natural positioning in socket, proper lighting",
+      number_of_objects: 1,
+      orientation: "Forward-facing"
+    };
+  } else {
+    // Generic object creation for unknown items
+    const objectType = lowerInstruction.replace(/^(add|put|place)\s*/i, '').trim().split(' ')[0];
+    return {
+      description: `A ${objectType} added to complement the character naturally.`,
+      location: "appropriate position relative to character",
+      relationship: "Associated with the main character.",
+      relative_size: "proportional to character and scene",
+      shape_and_color: `${objectType}-appropriate appearance and color`,
+      texture: "Suitable material texture for the object type",
+      appearance_details: "Natural integration with existing elements, realistic positioning",
+      number_of_objects: 1,
+      orientation: "Appropriate for object type and scene"
+    };
+  }
+}
 
 /**
  * Perform background removal
  */
 async function performBackgroundRemoval(imageUrl) {
   console.log("🎨 Performing background removal");
+  console.log(`   - Preserving subject from: ${imageUrl}`);
   
   const result = await briaRequest(`${BRIA_EDIT_BASE_URL}/remove_background`, {
     image: imageUrl,
@@ -590,13 +686,13 @@ async function performMaskBasedRefinement(imageUrl, instruction, originalData, r
   console.log(`   - Target: ${refinementPlan.operations[0]?.target || 'auto-detect'}`);
   
   try {
-    // Try to generate mask for the target object
+    // Step 1: Try to generate mask for the target object
     const maskResult = await generateObjectMask(imageUrl, refinementPlan.operations[0]?.target);
     
     if (maskResult.success) {
       console.log("✅ Mask generated successfully, using gen_fill for localized edit");
       
-      // Use gen_fill with mask for precise localized editing
+      // Step 2: Use gen_fill with mask for precise localized editing
       const genFillResult = await briaRequest(`${BRIA_EDIT_BASE_URL}/gen_fill`, {
         image: imageUrl,
         mask: maskResult.mask,
@@ -699,6 +795,7 @@ async function downloadImageAsBase64(imageUrl) {
     const buffer = Buffer.from(response.data);
     const base64 = buffer.toString('base64');
     
+    // Return in the format expected by Bria API
     return `data:image/png;base64,${base64}`;
     
   } catch (error) {
@@ -707,102 +804,187 @@ async function downloadImageAsBase64(imageUrl) {
   }
 }
 
+// Duplicate downloadImageAsBase64 function removed - using version at line 788
+
 /**
- * Perform multi-step refinement for complex instructions
+ * Perform multi-step refinement by combining all operations into single structured prompt
  */
 async function performMultiStepRefinement(imageUrl, instruction, originalData, refinementPlan) {
-  console.log("🔄 Performing multi-step refinement");
+  console.log("🔄 Performing combined multi-step refinement");
   console.log(`   - Operations: ${refinementPlan.operations.length}`);
+  console.log(`   - Combined instruction: ${instruction}`);
   
-  let currentImageUrl = imageUrl;
-  let currentData = originalData;
-  const operationResults = [];
-  
-  for (let i = 0; i < refinementPlan.operations.length; i++) {
-    const operation = refinementPlan.operations[i];
-    console.log(`📝 Step ${i + 1}/${refinementPlan.operations.length}: ${operation.type}`);
-    
-    let stepResult;
-    
-    if (operation.type === 'background_change') {
-      stepResult = await performBackgroundEdit(currentImageUrl, operation.description, currentData);
-    } else if (operation.specificity === 'very_high') {
-      // Use mask-based for high specificity edits
-      const localizedPlan = {
-        strategy: 'mask_based',
-        operations: [operation]
-      };
-      stepResult = await performMaskBasedRefinement(currentImageUrl, instruction, currentData, localizedPlan);
-    } else {
-      // Use structured prompt approach
-      const structuredPlan = {
-        strategy: 'structured_prompt',
-        operations: [operation]
-      };
-      stepResult = await performEnhancedStructuredRefinement(currentImageUrl, instruction, currentData, structuredPlan);
-    }
-    
-    if (!stepResult.success) {
-      console.error(`❌ Step ${i + 1} failed:`, stepResult.error);
-      // Continue with remaining steps using current image
-    } else {
-      currentImageUrl = stepResult.imageUrl;
-      currentData = {
-        ...currentData,
-        image_url: stepResult.imageUrl,
-        structured_prompt: stepResult.structured_prompt || currentData?.structured_prompt
-      };
-      operationResults.push(stepResult);
-    }
+  // Instead of processing sequentially, combine ALL operations into one structured prompt modification
+  if (!originalData?.structured_prompt) {
+    console.warn("⚠️  No structured prompt available, using enhanced prompt-based approach for multi-edit");
+    return await performEnhancedPromptRefinement(imageUrl, instruction, originalData);
   }
   
-  // Return the final result
-  const finalResult = operationResults[operationResults.length - 1];
-  if (finalResult) {
+  try {
+    // Parse the original structured prompt
+    const originalPrompt = JSON.parse(originalData.structured_prompt);
+    console.log("📋 Original structured prompt parsed successfully");
+    
+    // Apply ALL operations to the structured prompt at once
+    const modifiedPrompt = applyCombinedOperations(originalPrompt, refinementPlan.operations, instruction);
+    
+    console.log("🎨 Generating image with combined multi-edit structured prompt");
+    
+    const result = await briaRequest(`${BRIA_BASE_URL}/image/generate`, {
+      structured_prompt: JSON.stringify(modifiedPrompt),
+      sync: false
+    });
+
+    if (!result.success) {
+      console.error("❌ Combined multi-step refinement failed:", result.error);
+      return result;
+    }
+
+    const { request_id } = result.data;
+    console.log(`📝 Combined multi-step refinement request ID: ${request_id}`);
+    
+    const pollResult = await pollBriaStatus(request_id);
+    
+    // Apply background preservation logic
+    const hasBackgroundEdit = refinementPlan.operations.some(op => 
+      op.type === 'background_edit' || op.instruction.toLowerCase().includes('background')
+    );
+    
+    let finalImageUrl = pollResult.imageUrl;
+    
+    if (!hasBackgroundEdit) {
+      console.log("🔒 No background edits detected - ensuring transparent background");
+      
+      const backgroundRemovalResult = await briaRequest(`${BRIA_EDIT_BASE_URL}/remove_background`, {
+        image: pollResult.imageUrl,
+        sync: false
+      });
+
+      if (backgroundRemovalResult.success) {
+        console.log(`📝 Post-refinement background removal request ID: ${backgroundRemovalResult.data.request_id}`);
+        const bgRemovalPollResult = await pollBriaStatus(backgroundRemovalResult.data.request_id);
+        finalImageUrl = bgRemovalPollResult.imageUrl;
+        console.log(`✅ Background successfully removed after multi-step refinement`);
+      } else {
+        console.warn(`⚠️  Post-refinement background removal failed: ${backgroundRemovalResult.error?.message}`);
+      }
+    }
+    
     return {
-      ...finalResult,
-      edit_type: 'multi_step_refinement',
-      steps_completed: operationResults.length,
+      success: true,
+      imageUrl: finalImageUrl,
+      request_id,
+      structured_prompt: pollResult.result?.structured_prompt || JSON.stringify(modifiedPrompt),
+      edit_type: 'combined_multi_step_refinement',
+      steps_completed: refinementPlan.operations.length,
       total_steps: refinementPlan.operations.length
     };
-  } else {
+
+  } catch (error) {
+    console.error("❌ Combined multi-step refinement failed:", error);
     return {
       success: false,
-      error: { message: "All multi-step operations failed" }
+      error: { message: `Combined multi-step refinement failed: ${error.message}` }
     };
   }
 }
 
 /**
- * Perform background-specific editing
+ * Apply multiple operations to structured prompt simultaneously
  */
-async function performBackgroundEdit(imageUrl, backgroundDescription, originalData) {
-  console.log("🎨 Performing dedicated background edit");
+function applyCombinedOperations(originalPrompt, operations, fullInstruction) {
+  console.log("🔧 Applying combined operations to structured prompt");
   
-  // Use background replacement endpoint for better results
-  const result = await briaRequest(`${BRIA_EDIT_BASE_URL}/replace_background`, {
-    image: imageUrl,
-    prompt: backgroundDescription,
-    sync: false
-  });
-
-  if (!result.success) {
-    console.warn("⚠️  Background replacement failed, falling back to generation approach");
-    return await performEnhancedPromptRefinement(imageUrl, backgroundDescription, originalData);
+  // Create a deep copy of the original prompt
+  const modifiedPrompt = JSON.parse(JSON.stringify(originalPrompt));
+  
+  // Initialize objects array if it doesn't exist
+  if (!modifiedPrompt.objects) {
+    modifiedPrompt.objects = [];
   }
-
-  const { request_id } = result.data;
-  console.log(`📝 Background replacement request ID: ${request_id}`);
   
-  const pollResult = await pollBriaStatus(request_id);
+  // Process each operation
+  for (const operation of operations) {
+    const lowerInstruction = operation.instruction.toLowerCase();
+    console.log(`   - Processing: ${operation.instruction} (${operation.type})`);
+    
+    if (operation.type === 'background_edit') {
+      // Handle background modifications
+      const backgroundDesc = extractBackgroundDescription(operation.instruction);
+      modifiedPrompt.background = backgroundDesc;
+      console.log(`     ✅ Background set to: ${backgroundDesc}`);
+      
+    } else if (operation.type === 'object_edit' || operation.type === 'general_edit') {
+      
+      if (lowerInstruction.includes('add')) {
+        // Add new objects
+        const newObject = createIntelligentObject(operation.instruction);
+        modifiedPrompt.objects.push(newObject);
+        console.log(`     ✅ Added object: ${newObject.description}`);
+        
+      } else if (lowerInstruction.includes('change') && lowerInstruction.includes('color')) {
+        // Color changes
+        const targetObject = extractTargetObject(operation.instruction);
+        const newColor = extractColor(operation.instruction);
+        
+        if (targetObject && newColor) {
+          // Find and modify existing objects
+          let modified = false;
+          for (let obj of modifiedPrompt.objects) {
+            if (obj.description && obj.description.toLowerCase().includes(targetObject)) {
+              if (obj.shape_and_color) {
+                obj.shape_and_color = obj.shape_and_color.replace(/\b\w+(?=\s+(color|colored|hue))/gi, newColor);
+              }
+              obj.description = obj.description.replace(new RegExp(`\\b\\w+\\s+(${targetObject})`, 'gi'), `${newColor} $1`);
+              modified = true;
+              console.log(`     ✅ Modified ${targetObject} color to ${newColor}`);
+              break;
+            }
+          }
+          
+          if (!modified) {
+            // If object doesn't exist, add it with the specified color
+            const newObject = createIntelligentObject(`add ${newColor} ${targetObject}`);
+            modifiedPrompt.objects.push(newObject);
+            console.log(`     ✅ Added new ${newColor} ${targetObject}`);
+          }
+        }
+      }
+    }
+  }
   
-  return {
-    success: true,
-    imageUrl: pollResult.imageUrl,
-    request_id,
-    structured_prompt: pollResult.result?.structured_prompt,
-    edit_type: 'background_replacement'
+  // Update short description to reflect all changes
+  if (modifiedPrompt.short_description) {
+    // Add information about all the modifications
+    const addedItems = operations
+      .filter(op => op.instruction.toLowerCase().includes('add'))
+      .map(op => op.instruction.replace(/^add\s*/i, '').trim())
+      .join(', ');
+    
+    if (addedItems) {
+      modifiedPrompt.short_description += ` The image has been enhanced with: ${addedItems}.`;
+    }
+    
+    // Ensure transparent background is maintained unless explicitly changed
+    const hasBackgroundEdit = operations.some(op => 
+      op.instruction.toLowerCase().includes('background')
+    );
+    
+    if (!hasBackgroundEdit && !modifiedPrompt.short_description.toLowerCase().includes('transparent background')) {
+      modifiedPrompt.short_description += ' The image maintains a transparent background.';
+    }
+  }
+  
+  // Add modification metadata
+  modifiedPrompt._combined_modification = {
+    operations: operations.map(op => op.instruction),
+    full_instruction: fullInstruction,
+    modified_at: new Date().toISOString(),
+    operation_count: operations.length
   };
+  
+  console.log(`✅ Combined ${operations.length} operations into single structured prompt`);
+  return modifiedPrompt;
 }
 
 /**
@@ -810,6 +992,7 @@ async function performBackgroundEdit(imageUrl, backgroundDescription, originalDa
  */
 async function performEnhancedStructuredRefinement(imageUrl, instruction, originalData, refinementPlan) {
   console.log("🎯 Performing enhanced structured prompt refinement");
+  console.log(`   - Instruction: ${instruction}`);
   
   if (!originalData?.structured_prompt) {
     console.warn("⚠️  No structured prompt available, using enhanced prompt-based approach");
@@ -880,31 +1063,111 @@ async function performEnhancedStructuredRefinement(imageUrl, instruction, origin
 }
 
 /**
- * Enhanced prompt-based refinement with better fallback
+ * Perform FIBO-based refinement with transparent background preservation
  */
-async function performEnhancedPromptRefinement(imageUrl, instruction, originalData) {
-  console.log("🔄 Performing enhanced prompt-based refinement");
+async function performFIBORefinement(imageUrl, instruction, originalData) {
+  console.log("🎯 Performing FIBO-based refinement");
+  console.log(`   - Instruction: ${instruction}`);
+  
+  if (!originalData?.structured_prompt) {
+    console.warn("⚠️  No structured prompt available, using prompt-based approach");
+    return await performPromptBasedRefinement(imageUrl, instruction, originalData);
+  }
+  
+  try {
+    // Create intelligent modification of structured prompt
+    const modifiedPrompt = modifyStructuredPromptIntelligently(originalData.structured_prompt, instruction);
+    
+    console.log("🎨 Generating image with modified structured prompt");
+    
+    const result = await briaRequest(`${BRIA_BASE_URL}/image/generate`, {
+      structured_prompt: modifiedPrompt,
+      sync: false
+    });
+
+    if (!result.success) {
+      console.error("❌ FIBO refinement failed:", result.error);
+      return result;
+    }
+
+    const { request_id } = result.data;
+    console.log(`📝 FIBO refinement request ID: ${request_id}`);
+    
+    const pollResult = await pollBriaStatus(request_id);
+    
+    // CRITICAL: Check if we need to preserve transparent background
+    const lowerInstruction = instruction.toLowerCase();
+    const isBackgroundEdit = lowerInstruction.includes('background') && 
+                            (lowerInstruction.includes('add') || lowerInstruction.includes('change'));
+    
+    let finalImageUrl = pollResult.imageUrl;
+    
+    // If this is NOT a background edit, ensure background stays transparent
+    if (!isBackgroundEdit) {
+      console.log("🔒 Non-background edit detected - ensuring transparent background");
+      
+      const backgroundRemovalResult = await briaRequest(`${BRIA_EDIT_BASE_URL}/remove_background`, {
+        image: pollResult.imageUrl,
+        sync: false
+      });
+
+      if (backgroundRemovalResult.success) {
+        console.log(`📝 Post-refinement background removal request ID: ${backgroundRemovalResult.data.request_id}`);
+        const bgRemovalPollResult = await pollBriaStatus(backgroundRemovalResult.data.request_id);
+        finalImageUrl = bgRemovalPollResult.imageUrl;
+        console.log(`✅ Background successfully removed after refinement`);
+      } else {
+        console.warn(`⚠️  Post-refinement background removal failed: ${backgroundRemovalResult.error?.message}`);
+      }
+    } else {
+      console.log("🎨 Background edit detected - keeping generated background");
+    }
+    
+    return {
+      success: true,
+      imageUrl: finalImageUrl,
+      request_id,
+      structured_prompt: pollResult.result?.structured_prompt || modifiedPrompt,
+      edit_type: isBackgroundEdit ? 'background_edit' : 'fibo_structured_refinement'
+    };
+
+  } catch (error) {
+    console.error("❌ FIBO refinement failed:", error);
+    return {
+      success: false,
+      error: { message: `FIBO refinement failed: ${error.message}` }
+    };
+  }
+}
+
+/**
+ * Fallback prompt-based refinement
+ */
+async function performPromptBasedRefinement(imageUrl, instruction, originalData) {
+  console.log("🔄 Performing prompt-based refinement as fallback");
   
   const lowerInstruction = instruction.toLowerCase();
   const isBackgroundEdit = lowerInstruction.includes('background') && 
                           (lowerInstruction.includes('add') || lowerInstruction.includes('change'));
   
-  // Build enhanced contextual prompt
-  let enhancedPrompt;
+  // Build contextual prompt based on whether this is a background edit
+  let contextualPrompt;
   if (isBackgroundEdit) {
-    enhancedPrompt = originalData 
-      ? `${originalData.original_prompt}, ${instruction}, high quality design suitable for t-shirt printing`
-      : `${instruction}, high quality design suitable for t-shirt printing`;
+    // For background edits, don't force transparent background
+    contextualPrompt = originalData 
+      ? `${originalData.original_prompt}, ${instruction}, clean design suitable for t-shirt printing`
+      : `${instruction}, clean design suitable for t-shirt printing`;
   } else {
-    enhancedPrompt = originalData 
-      ? `${originalData.original_prompt}, ${instruction}, transparent background, high quality design suitable for t-shirt printing`
-      : `${instruction}, transparent background, high quality design suitable for t-shirt printing`;
+    // For non-background edits, ensure transparent background
+    contextualPrompt = originalData 
+      ? `${originalData.original_prompt}, ${instruction}, transparent background, clean design suitable for t-shirt printing`
+      : `${instruction}, transparent background, clean design suitable for t-shirt printing`;
   }
   
-  console.log(`📝 Using enhanced prompt: ${enhancedPrompt}`);
+  console.log(`📝 Using contextual prompt: ${contextualPrompt}`);
   
   const result = await briaRequest(`${BRIA_BASE_URL}/image/generate`, {
-    prompt: enhancedPrompt,
+    prompt: contextualPrompt,
     sync: false
   });
 
@@ -917,9 +1180,9 @@ async function performEnhancedPromptRefinement(imageUrl, instruction, originalDa
   
   let finalImageUrl = pollResult.imageUrl;
   
-  // Ensure background transparency for non-background edits
+  // If this is NOT a background edit, ensure background stays transparent
   if (!isBackgroundEdit) {
-    console.log("🔒 Ensuring transparent background for enhanced prompt refinement");
+    console.log("🔒 Non-background edit detected - ensuring transparent background");
     
     const backgroundRemovalResult = await briaRequest(`${BRIA_EDIT_BASE_URL}/remove_background`, {
       image: pollResult.imageUrl,
@@ -927,11 +1190,12 @@ async function performEnhancedPromptRefinement(imageUrl, instruction, originalDa
     });
 
     if (backgroundRemovalResult.success) {
+      console.log(`📝 Post-refinement background removal request ID: ${backgroundRemovalResult.data.request_id}`);
       const bgRemovalPollResult = await pollBriaStatus(backgroundRemovalResult.data.request_id);
       finalImageUrl = bgRemovalPollResult.imageUrl;
-      console.log(`✅ Background successfully removed after enhanced prompt refinement`);
+      console.log(`✅ Background successfully removed after prompt-based refinement`);
     } else {
-      console.warn(`⚠️  Background removal failed: ${backgroundRemovalResult.error?.message}`);
+      console.warn(`⚠️  Post-refinement background removal failed: ${backgroundRemovalResult.error?.message}`);
     }
   }
   
@@ -940,11 +1204,9 @@ async function performEnhancedPromptRefinement(imageUrl, instruction, originalDa
     imageUrl: finalImageUrl,
     request_id,
     structured_prompt: pollResult.result?.structured_prompt,
-    edit_type: isBackgroundEdit ? 'background_edit' : 'enhanced_prompt_refinement'
+    edit_type: isBackgroundEdit ? 'background_edit' : 'prompt_based_refinement'
   };
 }
-
-// ====== ENHANCED NLP FUNCTIONS ======
 
 /**
  * Enhanced structured prompt modification with better NLP parsing
@@ -956,6 +1218,26 @@ function enhancedStructuredPromptModification(originalPromptString, instruction)
     
     console.log("🧠 Enhanced structured prompt modification");
     console.log(`   - Instruction: ${instruction}`);
+    
+    // Check for multi-edit patterns and use dedicated multi-edit processing
+    const multiEditPatterns = [
+      ' and ', ' & ', ' plus ', ' also ', ' then ',
+      /add\s+\w+.*add\s+\w+/i,  // Multiple "add" statements
+      /,\s*add/i,               // Comma-separated additions
+    ];
+    
+    const isMultiEdit = multiEditPatterns.some(pattern => {
+      if (typeof pattern === 'string') {
+        return lowerInstruction.includes(pattern);
+      } else {
+        return pattern.test(instruction);
+      }
+    });
+    
+    if (isMultiEdit) {
+      console.log("🔄 Multi-edit detected - using dedicated multi-edit processing");
+      return processMultiEditInstruction(prompt, instruction);
+    }
     
     // Preserve transparent background unless explicitly changing background
     if (!lowerInstruction.includes('background')) {
@@ -991,6 +1273,85 @@ function enhancedStructuredPromptModification(originalPromptString, instruction)
 }
 
 /**
+ * Advanced instruction parsing with better NLP
+ */
+function parseInstructionAdvanced(instruction) {
+  const lowerInstruction = instruction.toLowerCase();
+  const modifications = [];
+  
+  // Parse different types of modifications
+  
+  // 1. Addition operations
+  if (lowerInstruction.includes('add')) {
+    const additionMatch = lowerInstruction.match(/add\s+(?:a\s+|an\s+)?(.+?)(?:\s+to\s+(.+?))?(?:\s+and|$)/);
+    if (additionMatch) {
+      const item = additionMatch[1].trim();
+      const location = additionMatch[2] ? additionMatch[2].trim() : null;
+      
+      modifications.push({
+        type: 'addition',
+        item: item,
+        location: location,
+        specificity: determineSpecificity(item, location)
+      });
+    }
+  }
+  
+  // 2. Color change operations
+  if (lowerInstruction.includes('change') && lowerInstruction.includes('color')) {
+    const colorMatch = lowerInstruction.match(/change\s+(?:the\s+)?(.+?)\s+color\s+to\s+(\w+)/);
+    if (colorMatch) {
+      modifications.push({
+        type: 'color_change',
+        target: colorMatch[1].trim(),
+        new_color: colorMatch[2].trim(),
+        specificity: 'high'
+      });
+    }
+  }
+  
+  // 3. Background operations
+  if (lowerInstruction.includes('background')) {
+    modifications.push({
+      type: 'background_change',
+      description: extractBackgroundDescription(instruction),
+      specificity: 'medium'
+    });
+  }
+  
+  // 4. Removal operations
+  if (lowerInstruction.includes('remove')) {
+    const removeMatch = lowerInstruction.match(/remove\s+(?:the\s+)?(.+)/);
+    if (removeMatch) {
+      modifications.push({
+        type: 'removal',
+        target: removeMatch[1].trim(),
+        specificity: 'high'
+      });
+    }
+  }
+  
+  // 5. Texture/material operations (blood, cracks, etc.)
+  const textureKeywords = ['blood', 'crack', 'scar', 'drip', 'paint', 'glow', 'shine', 'rust'];
+  for (const keyword of textureKeywords) {
+    if (lowerInstruction.includes(keyword)) {
+      modifications.push({
+        type: 'texture_addition',
+        texture: keyword,
+        target: extractTextureTarget(instruction, keyword),
+        specificity: 'very_high'
+      });
+    }
+  }
+  
+  return {
+    modifications,
+    complexity: modifications.length > 1 ? 'multi_step' : 'single_step',
+    requires_masking: modifications.some(m => m.specificity === 'very_high')
+  };
+}
+
+/**
  * Apply modification to structured prompt
  */
 function applyModificationToPrompt(prompt, modification) {
@@ -1019,6 +1380,14 @@ function applyModificationToPrompt(prompt, modification) {
     case 'texture_addition':
       if (!prompt.objects) prompt.objects = [];
       prompt.objects.push(createTextureObject(modification.texture, modification.target));
+      break;
+      
+    case 'removal':
+      if (prompt.objects) {
+        prompt.objects = prompt.objects.filter(obj => 
+          !obj.description.toLowerCase().includes(modification.target)
+        );
+      }
       break;
   }
 }
@@ -1099,6 +1468,74 @@ function createTextureObject(texture, target) {
 }
 
 /**
+ * Update short description with enhanced context
+ */
+function updateShortDescriptionEnhanced(prompt, instruction, parsedInstruction) {
+  if (!prompt.short_description) return;
+  
+  const isBackgroundEdit = parsedInstruction.modifications.some(m => m.type === 'background_change');
+  
+  if (isBackgroundEdit) {
+    const bgMod = parsedInstruction.modifications.find(m => m.type === 'background_change');
+    prompt.short_description = prompt.short_description.replace(
+      /transparent background|against a transparent background/gi, 
+      bgMod.description
+    );
+  } else {
+    // Add modification details while preserving transparency
+    const modificationSummary = parsedInstruction.modifications
+      .map(m => `${m.type.replace('_', ' ')}: ${m.item || m.target || m.texture}`)
+      .join(', ');
+    
+    prompt.short_description += ` Enhanced with ${modificationSummary}.`;
+    
+    if (!prompt.short_description.toLowerCase().includes('transparent background')) {
+      prompt.short_description += ' Maintains transparent background for t-shirt printing.';
+    }
+  }
+}
+
+/**
+ * Determine specificity level for masking decisions
+ */
+function determineSpecificity(item, location) {
+  const highSpecificityItems = ['blood', 'crack', 'scar', 'eye', 'tooth', 'nail'];
+  const mediumSpecificityItems = ['hat', 'cigar', 'glasses', 'jewelry'];
+  
+  if (highSpecificityItems.some(keyword => item.includes(keyword))) {
+    return 'very_high';
+  } else if (mediumSpecificityItems.some(keyword => item.includes(keyword))) {
+    return 'high';
+  } else if (location) {
+    return 'medium';
+  } else {
+    return 'low';
+  }
+}
+
+/**
+ * Extract texture target from instruction
+ */
+function extractTextureTarget(instruction, texture) {
+  const lowerInstruction = instruction.toLowerCase();
+  const targetMatch = lowerInstruction.match(new RegExp(`${texture}\\s+(?:to|on)\\s+(?:the\\s+)?(.+?)(?:\\s|$)`));
+  
+  if (targetMatch) {
+    return targetMatch[1].trim();
+  }
+  
+  // Common body parts and objects
+  const commonTargets = ['nose', 'face', 'head', 'hand', 'arm', 'leg', 'chest', 'skull', 'tooth', 'eye'];
+  for (const target of commonTargets) {
+    if (lowerInstruction.includes(target)) {
+      return target;
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Create generic object for unknown items
  */
 function createGenericObject(item, location) {
@@ -1133,31 +1570,225 @@ function createGenericTextureObject(texture, target) {
 }
 
 /**
- * Update short description with enhanced context
+ * Perform background-specific editing
  */
-function updateShortDescriptionEnhanced(prompt, instruction, parsedInstruction) {
-  if (!prompt.short_description) return;
+async function performBackgroundEdit(imageUrl, instruction, originalData) {
+  console.log("🎨 Performing dedicated background edit");
+  console.log(`   - Instruction: ${instruction}`);
   
-  const isBackgroundEdit = parsedInstruction.modifications.some(m => m.type === 'background_change');
+  const backgroundDesc = extractBackgroundDescription(instruction);
   
+  // Use background replacement endpoint for better results
+  const result = await briaRequest(`${BRIA_EDIT_BASE_URL}/replace_background`, {
+    image: imageUrl,
+    prompt: backgroundDesc,
+    sync: false
+  });
+
+  if (!result.success) {
+    console.warn("⚠️  Background replacement failed, falling back to generation approach");
+    return await performEnhancedPromptRefinement(imageUrl, instruction, originalData);
+  }
+
+  const { request_id } = result.data;
+  console.log(`📝 Background replacement request ID: ${request_id}`);
+  
+  const pollResult = await pollBriaStatus(request_id);
+  
+  return {
+    success: true,
+    imageUrl: pollResult.imageUrl,
+    request_id,
+    structured_prompt: pollResult.result?.structured_prompt,
+    edit_type: 'background_replacement'
+  };
+}
+
+/**
+ * Enhanced prompt-based refinement with better fallback
+ */
+async function performEnhancedPromptRefinement(imageUrl, instruction, originalData) {
+  console.log("🔄 Performing enhanced prompt-based refinement");
+  
+  const lowerInstruction = instruction.toLowerCase();
+  const isBackgroundEdit = lowerInstruction.includes('background') && 
+                          (lowerInstruction.includes('add') || lowerInstruction.includes('change'));
+  
+  // Build enhanced contextual prompt
+  let enhancedPrompt;
   if (isBackgroundEdit) {
-    const bgMod = parsedInstruction.modifications.find(m => m.type === 'background_change');
-    prompt.short_description = prompt.short_description.replace(
-      /transparent background|against a transparent background/gi, 
-      bgMod.description
-    );
+    enhancedPrompt = originalData 
+      ? `${originalData.original_prompt}, ${instruction}, high quality design suitable for t-shirt printing`
+      : `${instruction}, high quality design suitable for t-shirt printing`;
   } else {
-    // Add modification details while preserving transparency
-    const modificationSummary = parsedInstruction.modifications
-      .map(m => `${m.type.replace('_', ' ')}: ${m.item || m.target || m.texture}`)
-      .join(', ');
+    enhancedPrompt = originalData 
+      ? `${originalData.original_prompt}, ${instruction}, transparent background, high quality design suitable for t-shirt printing`
+      : `${instruction}, transparent background, high quality design suitable for t-shirt printing`;
+  }
+  
+  console.log(`📝 Using enhanced prompt: ${enhancedPrompt}`);
+  
+  const result = await briaRequest(`${BRIA_BASE_URL}/image/generate`, {
+    prompt: enhancedPrompt,
+    sync: false
+  });
+
+  if (!result.success) {
+    return result;
+  }
+
+  const { request_id } = result.data;
+  const pollResult = await pollBriaStatus(request_id);
+  
+  let finalImageUrl = pollResult.imageUrl;
+  
+  // Ensure background transparency for non-background edits
+  if (!isBackgroundEdit) {
+    console.log("🔒 Ensuring transparent background for enhanced prompt refinement");
     
-    prompt.short_description += ` Enhanced with ${modificationSummary}.`;
-    
-    if (!prompt.short_description.toLowerCase().includes('transparent background')) {
-      prompt.short_description += ' Maintains transparent background for t-shirt printing.';
+    const backgroundRemovalResult = await briaRequest(`${BRIA_EDIT_BASE_URL}/remove_background`, {
+      image: pollResult.imageUrl,
+      sync: false
+    });
+
+    if (backgroundRemovalResult.success) {
+      const bgRemovalPollResult = await pollBriaStatus(backgroundRemovalResult.data.request_id);
+      finalImageUrl = bgRemovalPollResult.imageUrl;
+      console.log(`✅ Background successfully removed after enhanced prompt refinement`);
+    } else {
+      console.warn(`⚠️  Background removal failed: ${backgroundRemovalResult.error?.message}`);
     }
   }
+  
+  return {
+    success: true,
+    imageUrl: finalImageUrl,
+    request_id,
+    structured_prompt: pollResult.result?.structured_prompt,
+    edit_type: isBackgroundEdit ? 'background_edit' : 'enhanced_prompt_refinement'
+  };
+}
+
+/**
+ * Intelligently modify structured prompt based on instruction
+ */
+function modifyStructuredPromptIntelligently(originalPromptString, instruction) {
+  try {
+    const prompt = JSON.parse(originalPromptString);
+    const lowerInstruction = instruction.toLowerCase();
+    
+    console.log("🧠 Intelligently modifying structured prompt");
+    console.log(`   - Instruction: ${instruction}`);
+    
+    // CRITICAL: Always preserve transparent background unless explicitly changing background
+    if (!lowerInstruction.includes('background')) {
+      prompt.background = "transparent background";
+      console.log("🔒 Preserving transparent background");
+    }
+    
+    // Handle different types of modifications
+    if (lowerInstruction.includes('add') && !lowerInstruction.includes('background')) {
+      // Adding objects
+      const newObject = createIntelligentObject(instruction);
+      if (!prompt.objects) {
+        prompt.objects = [];
+      }
+      prompt.objects.push(newObject);
+      console.log(`✅ Added object: ${newObject.description}`);
+      
+    } else if (lowerInstruction.includes('change') && lowerInstruction.includes('color')) {
+      // Color changes
+      const targetObject = extractTargetObject(instruction);
+      const newColor = extractColor(instruction);
+      
+      if (targetObject && newColor && prompt.objects) {
+        for (let obj of prompt.objects) {
+          if (obj.description && obj.description.toLowerCase().includes(targetObject)) {
+            if (obj.shape_and_color) {
+              obj.shape_and_color = obj.shape_and_color.replace(/\b\w+(?=\s+(color|colored|hue))/gi, newColor);
+            }
+            obj.description = obj.description.replace(new RegExp(`\\b\\w+\\s+(${targetObject})`, 'gi'), `${newColor} $1`);
+            console.log(`✅ Modified ${targetObject} color to ${newColor}`);
+            break;
+          }
+        }
+      }
+      
+    } else if (lowerInstruction.includes('background')) {
+      // Background modifications
+      const backgroundDesc = extractBackgroundDescription(instruction);
+      prompt.background = backgroundDesc;
+      console.log(`✅ Modified background: ${backgroundDesc}`);
+    }
+    
+    // Update short description appropriately
+    if (prompt.short_description) {
+      if (lowerInstruction.includes('background')) {
+        // For background edits, update the description to include the new background
+        const backgroundDesc = extractBackgroundDescription(instruction);
+        prompt.short_description = prompt.short_description.replace(/transparent background|against a transparent background/gi, backgroundDesc);
+        if (!prompt.short_description.toLowerCase().includes(backgroundDesc.toLowerCase())) {
+          prompt.short_description += ` The scene is set against ${backgroundDesc}.`;
+        }
+      } else {
+        // For non-background edits, add the modification but preserve transparency
+        prompt.short_description += ` ${instruction}.`;
+        // Ensure transparent background is maintained in description
+        if (!prompt.short_description.toLowerCase().includes('transparent background')) {
+          prompt.short_description += ' The image maintains a transparent background.';
+        }
+      }
+    }
+    
+    // Add modification metadata
+    prompt._intelligent_modification = {
+      instruction,
+      modified_at: new Date().toISOString(),
+      background_preserved: !lowerInstruction.includes('background')
+    };
+    
+    return JSON.stringify(prompt);
+    
+  } catch (error) {
+    console.error("Failed to intelligently modify structured prompt:", error);
+    throw error;
+  }
+}
+
+/**
+ * Extract target object from instruction
+ */
+function extractTargetObject(instruction) {
+  const lowerInstruction = instruction.toLowerCase();
+  const objects = ['hat', 'shirt', 'eye', 'hair', 'face', 'hand', 'arm', 'leg', 'shoe', 'glasses'];
+  
+  for (const obj of objects) {
+    if (lowerInstruction.includes(obj)) {
+      return obj;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Extract color from instruction with enhanced color detection
+ */
+function extractColor(instruction) {
+  const colors = [
+    'red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'black', 'white', 'brown', 'gray', 'grey',
+    'silver', 'gold', 'bronze', 'copper', 'crimson', 'scarlet', 'navy', 'teal', 'cyan', 'magenta',
+    'lime', 'olive', 'maroon', 'violet', 'indigo', 'turquoise', 'beige', 'tan', 'khaki'
+  ];
+  const lowerInstruction = instruction.toLowerCase();
+  
+  for (const color of colors) {
+    if (lowerInstruction.includes(color)) {
+      return color;
+    }
+  }
+  
+  return null;
 }
 
 /**
@@ -1218,28 +1849,317 @@ function extractBackgroundDescription(instruction) {
         return `a ${descriptor} background`;
       }
       
+      // If "background of X" pattern, extract X
+      const backgroundOfMatch = lowerInstruction.match(/background of (.+)/);
+      if (backgroundOfMatch) {
+        const backgroundType = backgroundOfMatch[1].trim();
+        return `a background featuring ${backgroundType}`;
+      }
+      
       return 'a scenic background';
     }
   }
 }
 
 /**
- * Extract color from instruction
+ * Test endpoint for multi-edit functionality
  */
-function extractColor(instruction) {
-  const colors = ['red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'black', 'white', 'brown', 'gray', 'grey'];
-  const lowerInstruction = instruction.toLowerCase();
-  
-  for (const color of colors) {
-    if (lowerInstruction.includes(color)) {
-      return color;
+app.post("/api/test/multi-edit", async (req, res) => {
+  try {
+    const { instruction, imageUrl } = req.body;
+    
+    console.log(`🧪 Testing multi-edit: "${instruction}"`);
+    
+    // Analyze the instruction
+    const refinementPlan = await analyzeRefinementInstruction(instruction, null);
+    
+    // Get generation data if available
+    let originalData = generationCache.get(imageUrl);
+    if (!originalData) {
+      for (const [key, data] of generationCache.entries()) {
+        if (data.local_url === imageUrl || data.image_url === imageUrl) {
+          originalData = data;
+          break;
+        }
+      }
     }
+    
+    res.json({
+      success: true,
+      analysis: {
+        instruction,
+        strategy: refinementPlan.strategy,
+        operations_detected: refinementPlan.operations.length,
+        operations: refinementPlan.operations,
+        has_original_data: !!originalData,
+        structured_prompt_available: !!(originalData?.structured_prompt)
+      }
+    });
+    
+  } catch (error) {
+    console.error("Multi-edit test error:", error.message);
+    res.status(500).json({
+      success: false,
+      error: { message: error.message }
+    });
   }
-  
-  return null;
-}
+});
 
-// ====== OTHER ENDPOINTS ======
+/**
+ * Complete multi-edit test endpoint that actually performs the refinement
+ */
+app.post("/api/test/complete-multi-edit", async (req, res) => {
+  try {
+    const { testCase } = req.body;
+    
+    const testCases = {
+      'sunglasses_and_cigar': {
+        prompt: 'cool tiger',
+        instruction: 'add sunglasses and add a cigar',
+        expected_objects: ['sunglasses', 'cigar']
+      },
+      'hat_and_necklace': {
+        prompt: 'elegant cat',
+        instruction: 'add a hat and add a necklace',
+        expected_objects: ['hat', 'necklace']
+      },
+      'multiple_accessories': {
+        prompt: 'fierce wolf',
+        instruction: 'add sunglasses, add a hat, and add a cigar',
+        expected_objects: ['sunglasses', 'hat', 'cigar']
+      }
+    };
+    
+    const test = testCases[testCase];
+    if (!test) {
+      return res.status(400).json({
+        success: false,
+        error: { message: `Unknown test case: ${testCase}` }
+      });
+    }
+    
+    console.log(`🧪 Running complete multi-edit test: ${testCase}`);
+    
+    // Step 1: Generate original image
+    console.log(`📝 Step 1: Generating original image with prompt: "${test.prompt}"`);
+    const generateResult = await briaRequest(`${BRIA_BASE_URL}/image/generate`, {
+      prompt: `${test.prompt}, clean design suitable for t-shirt printing`,
+      sync: false
+    });
+    
+    if (!generateResult.success) {
+      return res.status(500).json({
+        success: false,
+        error: generateResult.error,
+        step: 'generation'
+      });
+    }
+    
+    const generationPollResult = await pollBriaStatus(generateResult.data.request_id);
+    
+    // Remove background to ensure transparency
+    const bgRemovalResult = await briaRequest(`${BRIA_EDIT_BASE_URL}/remove_background`, {
+      image: generationPollResult.imageUrl,
+      sync: false
+    });
+    
+    let originalImageUrl = generationPollResult.imageUrl;
+    if (bgRemovalResult.success) {
+      const bgRemovalPollResult = await pollBriaStatus(bgRemovalResult.data.request_id);
+      originalImageUrl = bgRemovalPollResult.imageUrl;
+    }
+    
+    // Store generation data
+    const generationData = {
+      request_id: generateResult.data.request_id,
+      original_prompt: test.prompt,
+      structured_prompt: generationPollResult.result?.structured_prompt,
+      image_url: originalImageUrl,
+      created_at: new Date().toISOString()
+    };
+    
+    generationCache.set(originalImageUrl, generationData);
+    
+    console.log(`✅ Step 1 complete: Original image generated`);
+    
+    // Step 2: Analyze multi-edit instruction
+    console.log(`📝 Step 2: Analyzing multi-edit instruction: "${test.instruction}"`);
+    const refinementPlan = await analyzeRefinementInstruction(test.instruction, generationData);
+    
+    console.log(`✅ Step 2 complete: Strategy = ${refinementPlan.strategy}, Operations = ${refinementPlan.operations.length}`);
+    
+    // Step 3: Perform multi-edit refinement
+    console.log(`📝 Step 3: Performing multi-edit refinement`);
+    let refinementResult;
+    
+    if (refinementPlan.strategy === 'multi_step') {
+      refinementResult = await performMultiStepRefinement(originalImageUrl, test.instruction, generationData, refinementPlan);
+    } else {
+      refinementResult = await performEnhancedStructuredRefinement(originalImageUrl, test.instruction, generationData, refinementPlan);
+    }
+    
+    if (!refinementResult.success) {
+      return res.status(500).json({
+        success: false,
+        error: refinementResult.error,
+        step: 'refinement'
+      });
+    }
+    
+    console.log(`✅ Step 3 complete: Multi-edit refinement successful`);
+    
+    res.json({
+      success: true,
+      test_case: testCase,
+      results: {
+        original_image: originalImageUrl,
+        refined_image: refinementResult.imageUrl,
+        instruction: test.instruction,
+        strategy_used: refinementPlan.strategy,
+        operations_detected: refinementPlan.operations.length,
+        operations: refinementPlan.operations,
+        expected_objects: test.expected_objects,
+        request_id: refinementResult.request_id,
+        edit_type: refinementResult.edit_type
+      }
+    });
+    
+  } catch (error) {
+    console.error("Complete multi-edit test error:", error.message);
+    res.status(500).json({
+      success: false,
+      error: { message: error.message }
+    });
+  }
+});
+
+/**
+ * Test multi-edit functionality with real examples
+ */
+app.post("/api/test/multi-edit-demo", async (req, res) => {
+  try {
+    const { testCase } = req.body;
+    
+    const testCases = {
+      'sunglasses_and_cigar': {
+        prompt: 'cool tiger head',
+        instruction: 'add sunglasses and add a cigar',
+        expected: ['sunglasses', 'cigar']
+      },
+      'hat_and_necklace': {
+        prompt: 'elegant cat portrait',
+        instruction: 'add a hat and add a necklace',
+        expected: ['hat', 'necklace']
+      },
+      'three_accessories': {
+        prompt: 'fierce wolf',
+        instruction: 'add sunglasses, add a hat, and add a cigar',
+        expected: ['sunglasses', 'hat', 'cigar']
+      }
+    };
+    
+    const test = testCases[testCase];
+    if (!test) {
+      return res.status(400).json({
+        success: false,
+        error: { message: `Unknown test case. Available: ${Object.keys(testCases).join(', ')}` }
+      });
+    }
+    
+    console.log(`🧪 Running multi-edit demo: ${testCase}`);
+    
+    // Step 1: Generate original image
+    console.log(`📝 Generating original: "${test.prompt}"`);
+    const generateResult = await briaRequest(`${BRIA_BASE_URL}/image/generate`, {
+      prompt: `${test.prompt}, clean design suitable for t-shirt printing`,
+      sync: false
+    });
+    
+    if (!generateResult.success) {
+      return res.status(500).json({
+        success: false,
+        error: generateResult.error,
+        step: 'generation'
+      });
+    }
+    
+    const generationPollResult = await pollBriaStatus(generateResult.data.request_id);
+    
+    // Remove background for transparency
+    const bgRemovalResult = await briaRequest(`${BRIA_EDIT_BASE_URL}/remove_background`, {
+      image: generationPollResult.imageUrl,
+      sync: false
+    });
+    
+    let originalImageUrl = generationPollResult.imageUrl;
+    if (bgRemovalResult.success) {
+      const bgRemovalPollResult = await pollBriaStatus(bgRemovalResult.data.request_id);
+      originalImageUrl = bgRemovalPollResult.imageUrl;
+    }
+    
+    // Store generation data
+    const generationData = {
+      request_id: generateResult.data.request_id,
+      original_prompt: test.prompt,
+      structured_prompt: generationPollResult.result?.structured_prompt,
+      image_url: originalImageUrl,
+      created_at: new Date().toISOString()
+    };
+    
+    generationCache.set(originalImageUrl, generationData);
+    
+    // Step 2: Analyze multi-edit instruction
+    console.log(`📝 Analyzing: "${test.instruction}"`);
+    const refinementPlan = await analyzeRefinementInstruction(test.instruction, generationData);
+    
+    // Step 3: Perform multi-edit refinement
+    console.log(`📝 Performing multi-edit refinement`);
+    let refinementResult;
+    
+    if (refinementPlan.strategy === 'multi_step') {
+      refinementResult = await performMultiStepRefinement(originalImageUrl, test.instruction, generationData, refinementPlan);
+    } else {
+      refinementResult = await performEnhancedStructuredRefinement(originalImageUrl, test.instruction, generationData, refinementPlan);
+    }
+    
+    if (!refinementResult.success) {
+      return res.status(500).json({
+        success: false,
+        error: refinementResult.error,
+        step: 'refinement'
+      });
+    }
+    
+    // Download refined image locally
+    const filename = `multi_edit_demo_${testCase}_${Date.now()}.png`;
+    const localRefinedUrl = await downloadAndSaveImage(refinementResult.imageUrl, filename);
+    
+    res.json({
+      success: true,
+      test_case: testCase,
+      demo_results: {
+        original_image: originalImageUrl,
+        refined_image: localRefinedUrl,
+        original_bria_url: refinementResult.imageUrl,
+        instruction: test.instruction,
+        strategy_used: refinementPlan.strategy,
+        operations_detected: refinementPlan.operations.length,
+        operations: refinementPlan.operations,
+        expected_items: test.expected,
+        request_id: refinementResult.request_id,
+        edit_type: refinementResult.edit_type,
+        multi_edit_success: refinementPlan.strategy === 'multi_step' && refinementPlan.operations.length > 1
+      }
+    });
+    
+  } catch (error) {
+    console.error("Multi-edit demo error:", error.message);
+    res.status(500).json({
+      success: false,
+      error: { message: error.message }
+    });
+  }
+});
 
 /**
  * Add to cart
@@ -1281,8 +2201,6 @@ app.post("/api/cart/add", async (req, res) => {
   }
 });
 
-// ====== DEBUG ENDPOINTS ======
-
 /**
  * Debug endpoint for refinement analysis
  */
@@ -1311,8 +2229,7 @@ app.get("/api/debug/refinement-analysis/:imageUrl", async (req, res) => {
         mask_based: true,
         structured_prompt: !!originalData?.structured_prompt,
         enhanced_prompt: true,
-        multi_step: true,
-        unusual_edits: true
+        multi_step: true
       }
     };
     
@@ -1370,8 +2287,7 @@ app.post("/api/debug/parse-instruction", (req, res) => {
         complexity: parsedInstruction.complexity,
         requires_masking: parsedInstruction.requires_masking,
         modification_count: parsedInstruction.modifications.length,
-        modification_types: parsedInstruction.modifications.map(m => m.type),
-        unusual_edits_detected: parsedInstruction.modifications.some(m => m.specificity === 'very_high')
+        modification_types: parsedInstruction.modifications.map(m => m.type)
       }
     });
     
@@ -1381,6 +2297,33 @@ app.post("/api/debug/parse-instruction", (req, res) => {
       error: { message: error.message }
     });
   }
+});
+
+/**
+ * Health check
+ */
+app.get("/api/health", (req, res) => {
+  res.json({
+    success: true,
+    message: "Enhanced Bria T-shirt Design API is running",
+    timestamp: new Date().toISOString(),
+    cache_size: generationCache.size,
+    capabilities: {
+      generation: "✅ FIBO-based with transparent backgrounds",
+      refinement: "✅ Hybrid mask-based + structured prompt",
+      localized_editing: "✅ Mask-based for precise edits",
+      multi_step: "✅ Complex multi-operation support",
+      background_handling: "✅ Dedicated background operations",
+      unusual_edits: "✅ Blood, cracks, textures supported"
+    },
+    endpoints: {
+      generate: "/api/generate",
+      refine: "/api/refine",
+      cart: "/api/cart/add",
+      debug_analysis: "/api/debug/refinement-analysis/:imageUrl",
+      debug_parse: "/api/debug/parse-instruction"
+    }
+  });
 });
 
 /**
@@ -1487,8 +2430,7 @@ app.post("/api/test/unusual-refinement", async (req, res) => {
         original_prompt: test.prompt,
         instruction: test.instruction,
         structured_prompt_available: !!generationData.structured_prompt,
-        modification_count: refinementPlan.operations.length,
-        unusual_edit_detected: refinementPlan.operations.some(op => op.specificity === 'very_high')
+        modification_count: refinementPlan.operations.length
       }
     });
     
@@ -1501,35 +2443,6 @@ app.post("/api/test/unusual-refinement", async (req, res) => {
   }
 });
 
-/**
- * Health check
- */
-app.get("/api/health", (req, res) => {
-  res.json({
-    success: true,
-    message: "Enhanced Bria T-shirt Design API is running",
-    timestamp: new Date().toISOString(),
-    cache_size: generationCache.size,
-    capabilities: {
-      generation: "✅ FIBO-based with transparent backgrounds",
-      refinement: "✅ Hybrid mask-based + structured prompt",
-      localized_editing: "✅ Mask-based for precise edits",
-      multi_step: "✅ Complex multi-operation support",
-      background_handling: "✅ Dedicated background operations",
-      unusual_edits: "✅ Blood, cracks, textures supported",
-      enhanced_nlp: "✅ Advanced instruction parsing"
-    },
-    endpoints: {
-      generate: "/api/generate",
-      refine: "/api/refine",
-      cart: "/api/cart/add",
-      debug_analysis: "/api/debug/refinement-analysis/:imageUrl",
-      debug_parse: "/api/debug/parse-instruction",
-      test_unusual: "/api/test/unusual-refinement"
-    }
-  });
-});
-
 // ====== ERROR HANDLING ======
 app.use((err, req, res, next) => {
   console.error("Unhandled error:", err);
@@ -1539,10 +2452,177 @@ app.use((err, req, res, next) => {
   });
 });
 
+/**
+ * Process multi-edit instructions by combining all operations into single structured prompt
+ */
+function processMultiEditInstruction(prompt, instruction) {
+  console.log("🔧 Processing multi-edit instruction");
+  
+  // Initialize objects array if it doesn't exist
+  if (!prompt.objects) {
+    prompt.objects = [];
+  }
+  
+  // Parse multiple operations from the instruction
+  const operations = parseMultiEditOperations(instruction);
+  console.log(`   - Detected ${operations.length} operations`);
+  
+  // Process each operation
+  for (const operation of operations) {
+    const lowerOp = operation.toLowerCase();
+    console.log(`   - Processing: ${operation}`);
+    
+    if (lowerOp.includes('add')) {
+      // Add new objects
+      const newObject = createIntelligentObjectForMultiEdit(operation);
+      prompt.objects.push(newObject);
+      console.log(`     ✅ Added: ${newObject.description}`);
+      
+    } else if (lowerOp.includes('change') && lowerOp.includes('color')) {
+      // Handle color changes
+      const targetObject = extractTargetObject(operation);
+      const newColor = extractColor(operation);
+      
+      if (targetObject && newColor) {
+        let modified = false;
+        for (let obj of prompt.objects) {
+          if (obj.description && obj.description.toLowerCase().includes(targetObject)) {
+            if (obj.shape_and_color) {
+              obj.shape_and_color = obj.shape_and_color.replace(/\b\w+(?=\s+(color|colored|hue))/gi, newColor);
+            }
+            obj.description = obj.description.replace(new RegExp(`\\b\\w+\\s+(${targetObject})`, 'gi'), `${newColor} $1`);
+            modified = true;
+            console.log(`     ✅ Modified ${targetObject} color to ${newColor}`);
+            break;
+          }
+        }
+        
+        if (!modified) {
+          const newObject = createIntelligentObjectForMultiEdit(`add ${newColor} ${targetObject}`);
+          prompt.objects.push(newObject);
+          console.log(`     ✅ Added new ${newColor} ${targetObject}`);
+        }
+      }
+    }
+  }
+  
+  // Update short description to reflect all changes
+  if (prompt.short_description) {
+    const addedItems = operations
+      .filter(op => op.toLowerCase().includes('add'))
+      .map(op => op.replace(/^add\s*/i, '').trim())
+      .join(', ');
+    
+    if (addedItems) {
+      prompt.short_description += ` The image has been enhanced with: ${addedItems}.`;
+    }
+    
+    // Ensure transparent background is maintained
+    if (!prompt.short_description.toLowerCase().includes('transparent background')) {
+      prompt.short_description += ' The image maintains a transparent background.';
+    }
+  }
+  
+  // Preserve transparent background unless explicitly changed
+  if (!instruction.toLowerCase().includes('background')) {
+    prompt.background = "transparent background";
+  }
+  
+  // Add metadata
+  prompt._multi_edit_metadata = {
+    operations,
+    instruction,
+    processed_at: new Date().toISOString(),
+    operation_count: operations.length
+  };
+  
+  console.log(`✅ Multi-edit processing complete: ${operations.length} operations applied`);
+  return JSON.stringify(prompt);
+}
+
+/**
+ * Parse multi-edit operations from instruction
+ */
+function parseMultiEditOperations(instruction) {
+  // Enhanced splitting patterns
+  let parts = instruction.split(/\s+and\s+|\s*&\s*|\s*,\s*|\s+plus\s+|\s+also\s+/i);
+  
+  // If no clear separators, try to detect multiple "add" statements
+  if (parts.length === 1) {
+    const addMatches = instruction.match(/add\s+[^,]+/gi);
+    if (addMatches && addMatches.length > 1) {
+      parts = addMatches;
+    }
+  }
+  
+  return parts
+    .map(part => part.trim())
+    .filter(part => part.length > 0)
+    .map(part => part.replace(/^(and|also|plus|then)\s+/i, ''));
+}
+
+/**
+ * Create intelligent object for multi-edit scenarios
+ */
+function createIntelligentObjectForMultiEdit(instruction) {
+  const lowerInstruction = instruction.toLowerCase();
+  
+  if (lowerInstruction.includes('sunglasses') || lowerInstruction.includes('glasses')) {
+    return {
+      description: "Stylish sunglasses positioned naturally on the character's face, fitting perfectly over the eyes.",
+      location: "center-face, over eyes",
+      relationship: "Worn by the main character.",
+      relative_size: "proportional to face",
+      shape_and_color: "Classic sunglasses shape with dark lenses and sleek frame",
+      texture: "Smooth frame with reflective lenses",
+      appearance_details: "Natural positioning, realistic reflections",
+      number_of_objects: 1,
+      orientation: "Horizontal"
+    };
+  } else if (lowerInstruction.includes('cigar') || lowerInstruction.includes('cigarette')) {
+    return {
+      description: "A cigar held naturally by the character, positioned appropriately.",
+      location: "near mouth or in hand",
+      relationship: "Held by the main character.",
+      relative_size: "proportional, realistic size",
+      shape_and_color: "Cylindrical cigar shape, brown tobacco color",
+      texture: "Tobacco leaf texture",
+      appearance_details: "Realistic appearance with natural positioning",
+      number_of_objects: 1,
+      orientation: "Appropriate to pose"
+    };
+  } else if (lowerInstruction.includes('hat')) {
+    return {
+      description: "A stylish hat positioned naturally on the character's head.",
+      location: "top-center, on head",
+      relationship: "Worn by the main character.",
+      relative_size: "proportional to head",
+      shape_and_color: "Hat-appropriate shape and color",
+      texture: "Suitable hat material",
+      appearance_details: "Natural positioning, maintains style",
+      number_of_objects: 1,
+      orientation: "Upright"
+    };
+  } else {
+    // Generic object
+    const objectType = lowerInstruction.replace(/^(add|put|place)\s*/i, '').trim().split(' ')[0];
+    return {
+      description: `A ${objectType} added naturally to complement the character.`,
+      location: "appropriate position",
+      relationship: "Associated with the main character.",
+      relative_size: "proportional",
+      shape_and_color: `${objectType}-appropriate appearance`,
+      texture: "Suitable material",
+      appearance_details: "Natural integration",
+      number_of_objects: 1,
+      orientation: "Appropriate"
+    };
+  }
+}
+
 // ====== START SERVER ======
 app.listen(PORT, () => {
-  console.log(`🚀 Enhanced Bria T-shirt Design API running on http://localhost:${PORT}`);
+  console.log(`🚀 Bria T-shirt Design API running on http://localhost:${PORT}`);
   console.log(`📋 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`🎨 Ready for enhanced FIBO-based generation and hybrid refinement!`);
-  console.log(`🔧 Supports: mask-based localized editing, unusual refinements, multi-step operations`);
+  console.log(`🎨 Ready for FIBO-based image generation and refinement!`);
 });
