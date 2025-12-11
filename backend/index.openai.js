@@ -34,8 +34,7 @@ app.post("/generate-design", async (req, res) => {
     res.json({ imageUrl });
   } catch (error) {
     console.error("Image generation failed:", error.response?.data || error.message);
-res.status(500).json({ error: error.response?.data || error.message });
-
+    res.status(500).json({ error: error.response?.data || error.message });
   }
 });
 
