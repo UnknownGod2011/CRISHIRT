@@ -228,20 +228,7 @@ const TShirtMockup: React.FC<TShirtMockupProps> = ({
           {enhancedCompositingEnabled ? "Enhanced ✓" : "Enhanced"}
         </button>
 
-        {design && (
-          <button
-            onClick={generateEnhancedMockup}
-            disabled={isGeneratingEnhanced}
-            className={cn(
-              "px-4 py-1.5 text-sm rounded-lg transition-colors font-medium",
-              isGeneratingEnhanced
-                ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-                : "bg-purple-500 text-white hover:bg-purple-600"
-            )}
-          >
-            {isGeneratingEnhanced ? "Generating..." : "Generate Enhanced"}
-          </button>
-        )}
+
       </div>
 
 
