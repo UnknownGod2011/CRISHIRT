@@ -10,6 +10,13 @@ interface ControlPanelProps {
 
 const API_BASE = `${import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://fibo-t5mv.onrender.com')}/api`;
 
+// Debug: Log the API configuration
+console.log('🔧 API Configuration:', {
+  VITE_API_URL: import.meta.env.VITE_API_URL,
+  hostname: window.location.hostname,
+  finalApiBase: API_BASE
+});
+
 const PRESET_COLORS = [
   '#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF',
   '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500', '#800080'
