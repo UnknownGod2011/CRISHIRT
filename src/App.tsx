@@ -17,7 +17,7 @@ function AppContent() {
   useEffect(() => {
     const wakeUpBackend = async () => {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'https://fibo-t5mv.onrender.com';
+        const apiUrl = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://fibo-t5mv.onrender.com');
         console.log('🚀 Waking up backend server...');
         
         const response = await fetch(`${apiUrl}/api/health`, {

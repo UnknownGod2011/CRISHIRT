@@ -8,7 +8,7 @@ interface ControlPanelProps {
   onTshirtColorChange: (color: string) => void;
 }
 
-const API_BASE = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api`;
+const API_BASE = `${import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://fibo-t5mv.onrender.com')}/api`;
 
 const PRESET_COLORS = [
   '#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF',
@@ -660,10 +660,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           Raster (PNG)
         </button>
         <button
-          onClick={() => setVectorMode(true)}
-          className={`px-3 py-1 text-xs rounded ${vectorMode ? 'bg-purple-600 text-white' : 'bg-white text-gray-600 border border-gray-300'}`}
+          onClick={() => {/* Disabled - not working */}}
+          disabled={true}
+          className="px-3 py-1 text-xs rounded bg-gray-200 text-gray-400 border border-gray-300 cursor-not-allowed opacity-50"
+          title="Minimalist Style temporarily disabled"
         >
-          Minimalist Style
+          Minimalist Style (Disabled)
         </button>
       </div>
 
