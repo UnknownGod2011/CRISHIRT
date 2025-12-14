@@ -1,52 +1,32 @@
 # CRISHIRTS - AI-Powered T-Shirt Design Platform
 
-## 🏆 FIBO Hackathon Submission
+**CRISHIRTS** is an AI-powered T-shirt design platform that leverages Bria FIBO's advanced image generation capabilities. The platform provides intuitive tools for creating, customizing, and visualizing custom apparel designs with professional-grade control and real-time preview.
 
-**CRISHIRTS** is a production-ready AI T-shirt design platform that showcases Bria FIBO's JSON-native image generation capabilities. The platform demonstrates deterministic control over visual parameters through structured JSON, enabling designers to create, refine, and visualize custom apparel designs with precision.
+## ✨ Features
 
-## 🎯 Prize Categories
-
-- **Best Overall**: JSON-native control with professional parameters
-- **Best Controllability**: Real-time parameter editing and systematic exploration
-- **Best JSON-Native Workflow**: Automated batch generation with full reproducibility
-- **Best UX/Professional Tool**: Intuitive design interface with AR try-on
-
-## ✨ Key Features
-
-### 🎨 **FIBO JSON-Native Generation**
-- Natural language prompts automatically translated to structured JSON
-- Direct JSON parameter editing with real-time validation
-- Deterministic generation with full reproducibility
-- Professional parameter control (camera angles, FOV, lighting, color palettes)
+### 🎨 **AI Design Generation**
+- Natural language to image generation using Bria FIBO
+- Advanced parameter control (camera angles, lighting, colors)
+- Real-time design refinement and editing
+- Multiple style presets and customization options
 
 ### 👕 **T-Shirt Mockup System**
-- Real-time design overlay on T-shirt templates
-- Multiple T-shirt colors and styles (crew-neck, v-neck, long-sleeve, tank-top)
-- Perspective-correct design placement
-- Instant mockup updates
+- Instant design overlay on T-shirt templates
+- Multiple T-shirt colors and styles
+- Real-time mockup updates
+- Professional design placement
 
-### 🔄 **Batch Generation Pipeline**
-- Systematic parameter variation across multiple dimensions
-- Progress tracking for concurrent generations
-- Visual comparison grid for design exploration
-- Production-ready workflow demonstration
+### 📱 **AR Try-On**
+- Augmented reality T-shirt visualization
+- Real-time body tracking
+- Interactive design preview
+- Mobile-friendly experience
 
-### 📱 **AR Try-On Experience**
-- Real-time augmented reality T-shirt visualization
-- Body tracking using MediaPipe
-- Design switching in AR mode
-- Fallback for unsupported devices
-
-### 💾 **Design Library & Export**
-- Save designs with complete JSON parameters
-- Export/import with full reproducibility
-- Print-ready PNG format (300+ DPI)
-- Batch export functionality
-
-### 🎛️ **Parameter Presets & Suggestions**
-- 5+ style presets (Minimalist, Vibrant, Photorealistic, Artistic, HDR)
-- Real-time parameter suggestions based on prompts
-- Visual parameter documentation with examples
+### 💾 **Design Management**
+- Save and organize designs
+- Export in print-ready formats
+- Design library with search and filters
+- Batch processing capabilities
 
 ## 🚀 Technology Stack
 
@@ -114,70 +94,22 @@ npm run dev
 http://localhost:5173
 ```
 
-## 🎬 Demo Workflow
+## 🎬 How It Works
 
-1. **Natural Language to JSON**: Enter "geometric abstract art" → See automatic JSON translation
-2. **Parameter Control**: Adjust camera angle, lighting, colors → Real-time regeneration
-3. **T-Shirt Mockup**: Instant overlay on T-shirt templates with color/style options
-4. **Batch Generation**: Create 8 variants with systematic parameter variations
-5. **AR Try-On**: Activate camera → See designs on your body in real-time
-6. **Export/Import**: Save designs with parameters → Perfect reproducibility
+1. **Enter Prompt**: Describe your design idea in natural language
+2. **AI Generation**: FIBO creates professional designs from your prompt
+3. **Customize**: Adjust parameters like colors, lighting, and composition
+4. **Preview**: See your design on T-shirt mockups instantly
+5. **Try On**: Use AR to see how it looks on you
+6. **Export**: Save designs in print-ready formats
 
-## 🏗️ FIBO Integration Highlights
+## 🎯 Use Cases
 
-### JSON-Native Control
-```typescript
-const fiboParams = {
-  prompt: "minimalist geometric design",
-  camera: {
-    angle: "eye-level",
-    fov: 45,
-    distance: "medium"
-  },
-  lighting: {
-    type: "studio",
-    direction: "front",
-    intensity: 80
-  },
-  color: {
-    palette: ["#FF5733", "#33A1FF", "#28A745"],
-    saturation: 85,
-    contrast: 70
-  },
-  composition: {
-    rule: "rule-of-thirds",
-    balance: "balanced"
-  }
-}
-```
-
-### Deterministic Generation
-- Every design includes complete JSON parameters
-- Export/import maintains exact reproducibility
-- Version control for design iterations
-- Production-ready parameter management
-
-### Professional Workflow
-- Batch generation with systematic variations
-- Real-time parameter validation
-- Print-ready output formats
-- Scalable design pipeline
-
-## 📊 Performance Metrics
-
-- **Generation Time**: < 10 seconds per design
-- **Mockup Generation**: < 2 seconds
-- **AR Frame Rate**: 30+ FPS
-- **Batch Processing**: 8 variants in < 2 minutes
-- **Parameter Validation**: Real-time with < 100ms response
-
-## 🎯 Production Use Cases
-
-- **Custom Apparel Businesses**: On-demand T-shirt design generation
-- **Corporate Merchandise**: Brand-compliant design creation
-- **Print-on-Demand**: Scalable design pipeline integration
-- **Design Agencies**: Rapid concept exploration and client presentation
-- **E-commerce Platforms**: Interactive design customization
+- **Custom Apparel**: Create unique T-shirt designs
+- **Small Businesses**: Generate merchandise designs quickly
+- **Personal Projects**: Design custom shirts for events or gifts
+- **Print Shops**: Offer AI-powered design services
+- **Fashion Designers**: Rapid prototyping and concept exploration
 
 ## 🔧 API Endpoints
 
@@ -214,6 +146,6 @@ This project was created for the FIBO Hackathon. For questions or collaboration 
 
 ---
 
-**Built with ❤️ for the FIBO Hackathon 2024**
+**Built with ❤️ using Bria FIBO AI**
 
-*Showcasing the future of AI-powered design tools with JSON-native control and production-ready workflows.*
+*Empowering creativity through AI-powered design generation.*
