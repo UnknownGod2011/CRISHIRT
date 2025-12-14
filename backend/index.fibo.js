@@ -54,43 +54,7 @@ if (!fs.existsSync(designsDir)) {
 app.use("/designs", express.static(designsDir));
 
 // ====== FILE CLEANUP SYSTEM ======
-/**
- * Clean up old design files to prevent storage overflow
- * Keeps files for 24 hours, then removes them
- */
-function cleanupOldFiles() {
-  try {
-    const files = fs.readdirSync(designsDir);
-    const now = Date.now();
-    const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-    
-    let deletedCount = 0;
-    
-    files.forEach(file => {
-      const filePath = path.join(designsDir, file);
-      const stats = fs.statSync(filePath);
-      const fileAge = now - stats.mtime.getTime();
-      
-      if (fileAge > maxAge) {
-        fs.unlinkSync(filePath);
-        deletedCount++;
-        console.log(`🗑️  Cleaned up old file: ${file}`);
-      }
-    });
-    
-    if (deletedCount > 0) {
-      console.log(`✅ Cleanup complete: ${deletedCount} old files removed`);
-    }
-  } catch (error) {
-    console.error("❌ File cleanup error:", error.message);
-  }
-}
-
-// Run cleanup every hour
-setInterval(cleanupOldFiles, 60 * 60 * 1000);
-
-// Run cleanup on startup
-cleanupOldFiles();
+// (Cleanup system already implemented below - see cleanupOldDesigns function)
 
 // ====== GENERATION STATE STORAGE ======
 const generationCache = new Map(); // In production, use Redis or database

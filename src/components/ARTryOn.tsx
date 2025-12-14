@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Camera, CameraOff, RotateCcw } from 'lucide-react';
+import { Camera, CameraOff } from 'lucide-react';
 
 interface ARTryOnProps {
   design?: string;
