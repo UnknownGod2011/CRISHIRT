@@ -21,7 +21,9 @@ app.use(cors({
     "http://localhost:5174", 
     "http://localhost:3000",
     "https://crishirts.vercel.app",
-    /\.vercel\.app$/
+    "https://crishirt.vercel.app",
+    /\.vercel\.app$/,
+    /crishirt.*\.vercel\.app$/
   ],
   credentials: true
 }));
@@ -591,8 +593,12 @@ async function downloadAndSaveImage(imageUrl, filename) {
     const filepath = path.join(designsDir, filename);
     fs.writeFileSync(filepath, buffer);
     
-    const localUrl = `http://localhost:${PORT}/designs/${filename}`;
-    console.log(`✅ Image saved: ${filename}`);
+    // Generate URL that works in both local and production environments
+    const baseUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://fibo-t5mv.onrender.com' 
+      : `http://localhost:${PORT}`;
+    const localUrl = `${baseUrl}/designs/${filename}`;
+    console.log(`✅ Image saved: ${filename} -> ${localUrl}`);
     return localUrl;
   } catch (error) {
     console.error("Image download error:", error.message);
@@ -7654,7 +7660,11 @@ app.post("/api/enhanced-mockup", async (req, res) => {
     // Save the enhanced mockup
     const filename = `enhanced_mockup_${Date.now()}.png`;
     const filepath = await enhancedCompositingEngine.saveEnhancedMockup(mockupBuffer, filename);
-    const localUrl = `http://localhost:${PORT}/designs/${filename}`;
+    // Generate URL that works in both local and production environments
+    const baseUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://fibo-t5mv.onrender.com' 
+      : `http://localhost:${PORT}`;
+    const localUrl = `${baseUrl}/designs/${filename}`;
 
     console.log(`✅ Enhanced T-shirt mockup generated: ${filename}`);
 
@@ -7848,7 +7858,11 @@ app.post("/api/test-enhanced-compositing", async (req, res) => {
     
     const filename = `test_enhanced_mockup_${Date.now()}.png`;
     await enhancedCompositingEngine.saveEnhancedMockup(mockupBuffer, filename);
-    const localUrl = `http://localhost:${PORT}/designs/${filename}`;
+    // Generate URL that works in both local and production environments
+    const baseUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://fibo-t5mv.onrender.com' 
+      : `http://localhost:${PORT}`;
+    const localUrl = `${baseUrl}/designs/${filename}`;
     
     console.log('✅ Enhanced compositing test completed successfully');
     
