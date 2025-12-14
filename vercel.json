@@ -7,11 +7,6 @@
   "env": {
     "VITE_API_URL": "https://fibo-t5mv.onrender.com"
   },
-  "functions": {
-    "app/api/**/*.js": {
-      "runtime": "nodejs18.x"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/(.*)",
