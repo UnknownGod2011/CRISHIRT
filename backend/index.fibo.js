@@ -669,10 +669,15 @@ app.post("/api/generate", async (req, res) => {
     // Optimize prompt for T-shirt design with explicit transparent background
     const optimizedPrompt = `${prompt}, transparent background, clean design suitable for t-shirt printing`;
     
-    // Call Bria image generation API
+    // Call Bria image generation API with HDR/16-bit support
     const generateResult = await briaRequest(`${BRIA_BASE_URL}/image/generate`, {
       prompt: optimizedPrompt,
-      sync: false // Use async mode
+      sync: false, // Use async mode
+      output: {
+        format: 'png',
+        hdr: true,
+        bit_depth: 16
+      }
     });
 
     if (!generateResult.success) {
@@ -767,6 +772,382 @@ app.post("/api/generate", async (req, res) => {
 
   } catch (error) {
     console.error("Generation error:", error.message);
+    res.status(500).json({
+      success: false,
+      error: { message: error.message }
+    });
+  }
+});
+
+/**
+ * Generate vector design (SVG) for infinite scalability
+ */
+app.post("/api/generate-vector", async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    
+    // Validate input
+    if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: { message: "Valid prompt is required" }
+      });
+    }
+
+    console.log(`🎨 Starting vector generation: "${prompt}"`);
+
+    // Create isolated background context
+    const requestId = `vec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const backgroundContext = backgroundContextManager.createIsolatedContext(requestId);
+    backgroundContextManager.preventThemeBackgroundInference(requestId);
+
+    // Optimize prompt for vector T-shirt design
+    const optimizedPrompt = `${prompt}, clean vector illustration, minimalist design, suitable for t-shirt printing, scalable graphics`;
+    
+    // Call Bria V1 Vector API
+    const generateResult = await briaRequest(`https://engine.prod.bria-api.com/v1/text-to-vector/base`, {
+      prompt: optimizedPrompt,
+      num_results: 1,
+      sync: false
+    });
+
+    if (!generateResult.success) {
+      return res.status(generateResult.status || 500).json({
+        success: false,
+        error: generateResult.error
+      });
+    }
+
+    const { request_id } = generateResult.data;
+    console.log(`📝 Vector generation started, request ID: ${request_id}`);
+
+    // Poll for completion
+    const pollResult = await pollBriaStatus(request_id);
+    
+    // Download and save the vector file locally
+    const filename = `vector_${request_id}_${Date.now()}.svg`;
+    const localUrl = await downloadAndSaveImage(pollResult.imageUrl, filename);
+
+    // Store generation data
+    const generationData = {
+      request_id,
+      generation_request_id: requestId,
+      original_prompt: prompt,
+      optimized_prompt: optimizedPrompt,
+      image_url: pollResult.imageUrl,
+      local_url: localUrl,
+      generation_type: 'vector',
+      background_context: backgroundContext,
+      created_at: new Date().toISOString()
+    };
+    
+    generationCache.set(pollResult.imageUrl, generationData);
+    generationCache.set(localUrl, generationData);
+
+    res.json({
+      success: true,
+      message: "Vector design generated successfully - infinitely scalable!",
+      imageUrl: localUrl,
+      originalUrl: pollResult.imageUrl,
+      requestId: request_id,
+      generationType: 'vector',
+      isScalable: true
+    });
+
+  } catch (error) {
+    console.error("Vector generation error:", error.message);
+    res.status(500).json({
+      success: false,
+      error: { message: error.message }
+    });
+  }
+});
+
+/**
+ * Virtual Try-On using FIBO GenFill
+ */
+app.post("/api/virtual-tryon", async (req, res) => {
+  try {
+    const { userPhoto, designUrl, designPrompt } = req.body;
+    
+    // Validate input
+    if (!userPhoto || !designUrl || !designPrompt) {
+      return res.status(400).json({
+        success: false,
+        error: { message: "User photo, design URL, and design prompt are required" }
+      });
+    }
+
+    console.log(`👕 Starting virtual try-on with design: "${designPrompt}"`);
+
+    // Step 1: Remove background from user photo
+    const bgRemovalResult = await briaRequest(`${BRIA_EDIT_BASE_URL}/remove_background`, {
+      image: userPhoto,
+      sync: false
+    });
+
+    if (!bgRemovalResult.success) {
+      throw new Error(`Background removal failed: ${bgRemovalResult.error?.message}`);
+    }
+
+    const bgRemovedResult = await pollBriaStatus(bgRemovalResult.data.request_id);
+    
+    // Step 2: Generate person wearing the T-shirt using background replacement
+    const tryOnPrompt = `person wearing a t-shirt with ${designPrompt} design, realistic fabric texture, studio lighting, professional photography, high quality`;
+    
+    const tryOnResult = await briaRequest(`${BRIA_EDIT_BASE_URL}/replace_background`, {
+      image: bgRemovedResult.imageUrl,
+      prompt: tryOnPrompt,
+      sync: false
+    });
+
+    if (!tryOnResult.success) {
+      throw new Error(`Try-on generation failed: ${tryOnResult.error?.message}`);
+    }
+
+    const finalResult = await pollBriaStatus(tryOnResult.data.request_id);
+    
+    // Download and save locally
+    const filename = `tryon_${Date.now()}.png`;
+    const localUrl = await downloadAndSaveImage(finalResult.imageUrl, filename);
+
+    console.log(`✅ Virtual try-on completed successfully`);
+
+    res.json({
+      success: true,
+      message: "Virtual try-on generated successfully",
+      imageUrl: localUrl,
+      originalUrl: finalResult.imageUrl
+    });
+
+  } catch (error) {
+    console.error("Virtual try-on error:", error.message);
+    res.status(500).json({
+      success: false,
+      error: { message: error.message }
+    });
+  }
+});
+
+/**
+ * Generate design with brand colors using ControlNet Color Grid
+ */
+app.post("/api/generate-with-brand-colors", async (req, res) => {
+  try {
+    const { prompt, brandImageData } = req.body;
+    
+    // Validate input
+    if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: { message: "Valid prompt is required" }
+      });
+    }
+
+    if (!brandImageData || typeof brandImageData !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: { message: "Valid brand image data is required" }
+      });
+    }
+
+    console.log(`🎨 Starting brand color extraction generation: "${prompt}"`);
+
+    // Create isolated background context
+    const requestId = `brand_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const backgroundContext = backgroundContextManager.createIsolatedContext(requestId);
+    backgroundContextManager.preventThemeBackgroundInference(requestId);
+
+    // Optimize prompt for T-shirt design with brand color guidance
+    const optimizedPrompt = `professional t-shirt design, ${prompt}, clean design, transparent background, suitable for printing`;
+    
+    // Call Bria V1 API with ControlNet Color Grid guidance
+    const generateResult = await briaRequest(`https://engine.prod.bria-api.com/v1/text-to-image/base`, {
+      prompt: optimizedPrompt,
+      guidance_method_1: "controlnet_color_grid",
+      guidance_method_1_scale: 0.7,
+      guidance_method_1_image_file: brandImageData,
+      num_results: 1,
+      sync: false,
+      output: {
+        format: 'png',
+        hdr: true,
+        bit_depth: 16
+      }
+    });
+
+    if (!generateResult.success) {
+      return res.status(generateResult.status || 500).json({
+        success: false,
+        error: generateResult.error
+      });
+    }
+
+    const { request_id } = generateResult.data;
+    console.log(`📝 Brand color generation started, request ID: ${request_id}`);
+
+    // Poll for completion
+    const pollResult = await pollBriaStatus(request_id);
+    
+    console.log(`🎨 Brand color generation completed, making background transparent...`);
+    
+    // Remove background for transparency
+    const backgroundRemovalResult = await briaRequest(`${BRIA_EDIT_BASE_URL}/remove_background`, {
+      image: pollResult.imageUrl,
+      sync: false
+    });
+
+    let finalImageUrl = pollResult.imageUrl;
+    if (backgroundRemovalResult.success) {
+      const bgRemovalPollResult = await pollBriaStatus(backgroundRemovalResult.data.request_id);
+      finalImageUrl = bgRemovalPollResult.imageUrl;
+      console.log(`✅ Background removed from brand-colored design`);
+    }
+    
+    // Download and save locally
+    const filename = `brand_design_${request_id}_${Date.now()}.png`;
+    const localUrl = await downloadAndSaveImage(finalImageUrl, filename);
+
+    // Store generation data
+    const generationData = {
+      request_id,
+      generation_request_id: requestId,
+      original_prompt: prompt,
+      optimized_prompt: optimizedPrompt,
+      image_url: finalImageUrl,
+      local_url: localUrl,
+      generation_type: 'brand_colors',
+      background_context: backgroundContext,
+      created_at: new Date().toISOString()
+    };
+    
+    generationCache.set(finalImageUrl, generationData);
+    generationCache.set(localUrl, generationData);
+
+    res.json({
+      success: true,
+      message: "Design generated with brand colors",
+      imageUrl: localUrl,
+      originalUrl: finalImageUrl,
+      requestId: request_id,
+      generationType: 'brand_colors'
+    });
+
+  } catch (error) {
+    console.error("Brand color generation error:", error.message);
+    res.status(500).json({
+      success: false,
+      error: { message: error.message }
+    });
+  }
+});
+
+/**
+ * Generate design from sketch using ControlNet Canny
+ */
+app.post("/api/generate-from-sketch", async (req, res) => {
+  try {
+    const { prompt, sketchImageData } = req.body;
+    
+    // Validate input
+    if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: { message: "Valid prompt is required" }
+      });
+    }
+
+    if (!sketchImageData || typeof sketchImageData !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: { message: "Valid sketch image data is required" }
+      });
+    }
+
+    console.log(`🎨 Starting sketch-to-design generation: "${prompt}"`);
+
+    // Create isolated background context
+    const requestId = `sketch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const backgroundContext = backgroundContextManager.createIsolatedContext(requestId);
+    backgroundContextManager.preventThemeBackgroundInference(requestId);
+
+    // Optimize prompt for T-shirt design with ControlNet guidance
+    const optimizedPrompt = `professional t-shirt design, ${prompt}, clean vector style, transparent background, suitable for printing`;
+    
+    // Call Bria V1 API with ControlNet Canny guidance
+    const generateResult = await briaRequest(`https://engine.prod.bria-api.com/v1/text-to-image/base`, {
+      prompt: optimizedPrompt,
+      guidance_method_1: "controlnet_canny",
+      guidance_method_1_scale: 0.8,
+      guidance_method_1_image_file: sketchImageData,
+      num_results: 1,
+      sync: false,
+      output: {
+        format: 'png',
+        hdr: true,
+        bit_depth: 16
+      }
+    });
+
+    if (!generateResult.success) {
+      return res.status(generateResult.status || 500).json({
+        success: false,
+        error: generateResult.error
+      });
+    }
+
+    const { request_id } = generateResult.data;
+    console.log(`📝 Sketch generation started, request ID: ${request_id}`);
+
+    // Poll for completion
+    const pollResult = await pollBriaStatus(request_id);
+    
+    console.log(`🎨 Sketch generation completed, making background transparent...`);
+    
+    // Remove background for transparency
+    const backgroundRemovalResult = await briaRequest(`${BRIA_EDIT_BASE_URL}/remove_background`, {
+      image: pollResult.imageUrl,
+      sync: false
+    });
+
+    let finalImageUrl = pollResult.imageUrl;
+    if (backgroundRemovalResult.success) {
+      const bgRemovalPollResult = await pollBriaStatus(backgroundRemovalResult.data.request_id);
+      finalImageUrl = bgRemovalPollResult.imageUrl;
+      console.log(`✅ Background removed from sketch design`);
+    }
+    
+    // Download and save locally
+    const filename = `sketch_design_${request_id}_${Date.now()}.png`;
+    const localUrl = await downloadAndSaveImage(finalImageUrl, filename);
+
+    // Store generation data
+    const generationData = {
+      request_id,
+      generation_request_id: requestId,
+      original_prompt: prompt,
+      optimized_prompt: optimizedPrompt,
+      image_url: finalImageUrl,
+      local_url: localUrl,
+      generation_type: 'sketch_to_design',
+      background_context: backgroundContext,
+      created_at: new Date().toISOString()
+    };
+    
+    generationCache.set(finalImageUrl, generationData);
+    generationCache.set(localUrl, generationData);
+
+    res.json({
+      success: true,
+      message: "Professional design generated from sketch",
+      imageUrl: localUrl,
+      originalUrl: finalImageUrl,
+      requestId: request_id,
+      generationType: 'sketch_to_design'
+    });
+
+  } catch (error) {
+    console.error("Sketch generation error:", error.message);
     res.status(500).json({
       success: false,
       error: { message: error.message }

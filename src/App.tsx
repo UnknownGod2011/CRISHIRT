@@ -6,7 +6,7 @@ import TShirtMockup from './components/TShirtMockup';
 import ControlPanel from './components/ControlPanel';
 import Collection from './pages/collection';
 import Cart from './pages/cart';
-import ARTryOnPage from './pages/ar-tryon';
+import VRTryOnPage from './pages/vr-tryon';
 
 function AppContent() {
   const { tshirtColor, setTshirtColor } = useTshirtState();
@@ -42,7 +42,7 @@ function AppContent() {
               to="/ar-tryon"
               className="relative text-gray-800 hover:text-purple-600 transition duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-gradient-to-r from-blue-500 to-purple-600 hover:after:w-full after:transition-all after:duration-300"
             >
-              AR Try-On
+              VR Try-On
             </Link>
 
             <Link
@@ -109,7 +109,7 @@ function AppContent() {
             </div>
           }
         />
-        <Route path="/ar-tryon" element={<ARTryOnPage />} />
+        <Route path="/ar-tryon" element={<VRTryOnPage />} />
         <Route path="/collection" element={<Collection />} />
         <Route path="/cart" element={<Cart />} />
       </Routes>

@@ -22,6 +22,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   // Local state for input fields
   const [prompt, setPrompt] = useState('');
   const [modifyPrompt, setModifyPrompt] = useState('');
+  const [vectorMode, setVectorMode] = useState(false);
   
   // Upload state
   const [uploadedDesign, setUploadedDesign] = useState<string | null>(null);
@@ -53,6 +54,132 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   } = useDesignState();
   
   const { addToCart } = useCartState();
+
+  // Handle brand color extraction
+  const handleBrandColorExtraction = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setError('Please upload an image file');
+      return;
+    }
+
+    if (!prompt.trim()) {
+      setError('Please enter a design description first, then upload your brand image');
+      return;
+    }
+
+    setIsProcessingUpload(true);
+    setError(null);
+    setGenerationProgress('Extracting brand colors and generating design...');
+
+    try {
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const imageDataUrl = e.target?.result as string;
+        const base64Data = imageDataUrl.split(',')[1]; // Remove data:image/jpeg;base64,
+        
+        try {
+          // Call brand color extraction API
+          const response = await fetch(`${API_BASE}/generate-with-brand-colors`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              prompt: prompt,
+              brandImageData: base64Data
+            }),
+          });
+          
+          const data = await handleApiResponse(response);
+          
+          setGenerationProgress('');
+          setSuccess('✅ Design created with your exact brand colors!');
+          setTimeout(() => setSuccess(null), 3000);
+          
+          // Update global state with generated design
+          setGeneratedImage(data.imageUrl);
+          setLastPrompt(`Brand-colored design: ${prompt}`);
+          
+          // Clear the prompt since it was used
+          setPrompt('');
+          
+        } catch (err: any) {
+          console.error('Brand color extraction error:', err);
+          setGenerationProgress('');
+          setError(err.message || 'Failed to extract brand colors');
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      console.error('Brand image upload error:', err);
+      setGenerationProgress('');
+      setError(err.message || 'Failed to upload brand image');
+    } finally {
+      setIsProcessingUpload(false);
+    }
+  };
+
+  // Handle sketch upload for ControlNet Canny processing
+  const handleSketchUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setError('Please upload an image file');
+      return;
+    }
+
+    if (!prompt.trim()) {
+      setError('Please enter a design description first, then upload your sketch');
+      return;
+    }
+
+    setIsProcessingUpload(true);
+    setError(null);
+    setGenerationProgress('Converting sketch to professional design...');
+
+    try {
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const imageDataUrl = e.target?.result as string;
+        const base64Data = imageDataUrl.split(',')[1]; // Remove data:image/jpeg;base64,
+        
+        try {
+          // Call sketch-to-design API
+          const response = await fetch(`${API_BASE}/generate-from-sketch`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              prompt: prompt,
+              sketchImageData: base64Data
+            }),
+          });
+          
+          const data = await handleApiResponse(response);
+          
+          setGenerationProgress('');
+          setSuccess('✅ Professional design created from your sketch!');
+          setTimeout(() => setSuccess(null), 3000);
+          
+          // Update global state with generated design
+          setGeneratedImage(data.imageUrl);
+          setLastPrompt(`Professional design from sketch: ${prompt}`);
+          
+          // Clear the prompt since it was used
+          setPrompt('');
+          
+        } catch (err: any) {
+          console.error('Sketch processing error:', err);
+          setGenerationProgress('');
+          setError(err.message || 'Failed to process sketch');
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      console.error('Sketch upload error:', err);
+      setGenerationProgress('');
+      setError(err.message || 'Failed to upload sketch');
+    } finally {
+      setIsProcessingUpload(false);
+    }
+  };
 
   // Handle file upload with FIBO processing and background removal
   const handleFileUpload = async (file: File) => {
@@ -141,11 +268,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     }
   };
 
-  // Handle file input change
+  // Handle file input change - detect if it's for sketch or regular upload
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      handleFileUpload(file);
+      // Check if this was triggered by sketch button (has prompt) or regular upload
+      if (prompt.trim()) {
+        handleSketchUpload(file);
+      } else {
+        handleFileUpload(file);
+      }
     }
   };
 
@@ -177,8 +309,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     setGenerationProgress('Starting generation...');
     
     try {
-      // Call new Bria API
-      const response = await fetch(`${API_BASE}/generate`, {
+      // Call appropriate API based on vector mode
+      const endpoint = vectorMode ? '/generate-vector' : '/generate';
+      const response = await fetch(`${API_BASE}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),
@@ -441,6 +574,41 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           </button>
         </div>
         
+        {/* Your Sketch Option */}
+        <div className="flex items-center space-x-2">
+          <span className="text-xs text-gray-600">Your sketch</span>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isProcessingUpload || isGenerating || isRefining}
+            className="flex items-center justify-center w-6 h-6 bg-purple-100 border border-purple-300 rounded-full hover:bg-purple-200 hover:border-purple-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
+            title="Upload sketch for professional design"
+          >
+            <Plus className="w-3 h-3 text-purple-600 group-hover:text-purple-800" />
+          </button>
+        </div>
+        
+        {/* Brand Colors Option */}
+        <div className="flex items-center space-x-2">
+          <span className="text-xs text-gray-600">Brand colors</span>
+          <button
+            onClick={() => {
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = 'image/*';
+              input.onchange = (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0];
+                if (file) handleBrandColorExtraction(file);
+              };
+              input.click();
+            }}
+            disabled={isProcessingUpload || isGenerating || isRefining}
+            className="flex items-center justify-center w-6 h-6 bg-green-100 border border-green-300 rounded-full hover:bg-green-200 hover:border-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
+            title="Upload logo to extract brand colors"
+          >
+            <Plus className="w-3 h-3 text-green-600 group-hover:text-green-800" />
+          </button>
+        </div>
+        
         {/* Inline Processing Status */}
         {isProcessingUpload && (
           <div className="flex items-center space-x-2">
@@ -482,6 +650,23 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </div>
       )}
 
+      {/* Vector Mode Toggle */}
+      <div className="flex items-center justify-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <span className="text-sm text-gray-600">Output Format:</span>
+        <button
+          onClick={() => setVectorMode(false)}
+          className={`px-3 py-1 text-xs rounded ${!vectorMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-300'}`}
+        >
+          Raster (PNG)
+        </button>
+        <button
+          onClick={() => setVectorMode(true)}
+          className={`px-3 py-1 text-xs rounded ${vectorMode ? 'bg-purple-600 text-white' : 'bg-white text-gray-600 border border-gray-300'}`}
+        >
+          Vector (SVG) - Print Ready
+        </button>
+      </div>
+
       {/* Primary Prompt with inline button */}
       <div className="flex space-x-3">
         <input
@@ -495,14 +680,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         <button 
           onClick={handleGenerate}
           disabled={isGenerating || isRefining || !prompt.trim()}
-          className="px-6 py-2.5 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:border-gray-400 disabled:cursor-not-allowed transition-colors"
+          className={`px-6 py-2.5 text-sm font-medium text-white border rounded-lg hover:opacity-90 disabled:bg-gray-400 disabled:border-gray-400 disabled:cursor-not-allowed transition-colors ${vectorMode ? 'bg-purple-600 border-purple-600' : 'bg-blue-600 border-blue-600'}`}
         >
           {isGenerating ? (
             <div className="flex items-center space-x-2">
               <Loader2 className="w-4 h-4 animate-spin" />
               <span>Generating...</span>
             </div>
-          ) : 'Generate'}
+          ) : `Generate ${vectorMode ? 'Vector' : 'Design'}`}
         </button>
       </div>
 
