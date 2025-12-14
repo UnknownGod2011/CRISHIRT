@@ -7,10 +7,44 @@ import ControlPanel from './components/ControlPanel';
 import Collection from './pages/collection';
 import Cart from './pages/cart';
 import VRTryOnPage from './pages/vr-tryon.tsx';
+import { useEffect } from 'react';
 
 function AppContent() {
   const { tshirtColor, setTshirtColor } = useTshirtState();
   const { currentImage, currentSide, switchSide } = useDesignState();
+
+  // Wake up Render backend on app load
+  useEffect(() => {
+    const wakeUpBackend = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://fibo-t5mv.onrender.com';
+        console.log('🚀 Waking up backend server...');
+        
+        const response = await fetch(`${apiUrl}/api/health`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (response.ok) {
+          console.log('✅ Backend server is awake and ready!');
+        } else {
+          console.log('⚠️ Backend responded but may be starting up...');
+        }
+      } catch (error) {
+        console.log('⏳ Backend is starting up, this is normal on first load');
+      }
+    };
+
+    // Wake up immediately
+    wakeUpBackend();
+    
+    // Also wake up after 30 seconds to ensure it's fully ready
+    const wakeUpTimer = setTimeout(wakeUpBackend, 30000);
+    
+    return () => clearTimeout(wakeUpTimer);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">

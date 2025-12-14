@@ -5,7 +5,7 @@
   "installCommand": "npm install",
   "devCommand": "npm run dev:frontend",
   "env": {
-    "VITE_API_URL": "@vite_api_url"
+    "VITE_API_URL": "https://fibo-t5mv.onrender.com"
   },
   "functions": {
     "app/api/**/*.js": {
@@ -15,7 +15,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "$VITE_API_URL/api/$1"
+      "destination": "https://fibo-t5mv.onrender.com/api/$1"
     }
   ]
 }
