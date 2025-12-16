@@ -29,7 +29,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   // Local state for input fields
   const [prompt, setPrompt] = useState('');
   const [modifyPrompt, setModifyPrompt] = useState('');
-  const [vectorMode, setVectorMode] = useState(false);
+  // Vector mode removed for cleaner UI
   
   // Upload state
   const [uploadedDesign, setUploadedDesign] = useState<string | null>(null);
@@ -62,68 +62,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   
   const { addToCart } = useCartState();
 
-  // Handle brand color extraction
-  const handleBrandColorExtraction = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      setError('Please upload an image file');
-      return;
-    }
-
-    if (!prompt.trim()) {
-      setError('Please enter a design description first, then upload your brand image');
-      return;
-    }
-
-    setIsProcessingUpload(true);
-    setError(null);
-    setGenerationProgress('Extracting brand colors and generating design...');
-
-    try {
-      // Convert file to base64
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const imageDataUrl = e.target?.result as string;
-        const base64Data = imageDataUrl.split(',')[1]; // Remove data:image/jpeg;base64,
-        
-        try {
-          // Call brand color extraction API
-          const response = await fetch(`${API_BASE}/generate-with-brand-colors`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              prompt: prompt,
-              brandImageData: base64Data
-            }),
-          });
-          
-          const data = await handleApiResponse(response);
-          
-          setGenerationProgress('');
-          setSuccess('✅ Enhanced design created with professional colors!');
-          setTimeout(() => setSuccess(null), 3000);
-          
-          // Update global state with generated design
-          setGeneratedImage(data.imageUrl);
-          setLastPrompt(`Enhanced design: ${prompt}`);
-          
-          // Clear the prompt since it was used
-          setPrompt('');
-          
-        } catch (err: any) {
-          console.error('Brand color extraction error:', err);
-          setGenerationProgress('');
-          setError(err.message || 'Failed to extract brand colors');
-        }
-      };
-      reader.readAsDataURL(file);
-    } catch (err: any) {
-      console.error('Brand image upload error:', err);
-      setGenerationProgress('');
-      setError(err.message || 'Failed to upload brand image');
-    } finally {
-      setIsProcessingUpload(false);
-    }
-  };
+  // Brand color extraction removed for cleaner UI
 
   // Handle sketch upload for ControlNet Canny processing
   const handleSketchUpload = async (file: File) => {
@@ -317,7 +256,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     
     try {
       // Call appropriate API based on vector mode
-      const endpoint = vectorMode ? '/generate-vector' : '/generate';
+      const endpoint = '/generate'; // Always use regular generation
       const response = await fetch(`${API_BASE}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -639,14 +578,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         <button 
           onClick={handleGenerate}
           disabled={isGenerating || isRefining || !prompt.trim()}
-          className={`px-6 py-2.5 text-sm font-medium text-white border rounded-lg hover:opacity-90 disabled:bg-gray-400 disabled:border-gray-400 disabled:cursor-not-allowed transition-colors ${vectorMode ? 'bg-purple-600 border-purple-600' : 'bg-blue-600 border-blue-600'}`}
+          className="px-6 py-2.5 text-sm font-medium text-white border rounded-lg hover:opacity-90 disabled:bg-gray-400 disabled:border-gray-400 disabled:cursor-not-allowed transition-colors bg-blue-600 border-blue-600"
         >
           {isGenerating ? (
             <div className="flex items-center space-x-2">
               <Loader2 className="w-4 h-4 animate-spin" />
               <span>Generating...</span>
             </div>
-          ) : `Generate ${vectorMode ? 'Minimalist' : 'Design'}`}
+          ) : 'Generate Design'}
         </button>
       </div>
 
