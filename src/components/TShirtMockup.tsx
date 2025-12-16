@@ -42,8 +42,8 @@ const TShirtMockup: React.FC<TShirtMockupProps> = ({
   // Use global design alignment state (PERSISTENT ACROSS NAVIGATION)
   const { currentAlignment, updateAlignment } = useDesignState();
 
-  // Transition animation state
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  // Simple swipe transition state
+  const [isSwipping, setIsSwipping] = useState(false);
 
   const rotateRef = useRef<HTMLDivElement | null>(null);
 
@@ -131,14 +131,17 @@ const TShirtMockup: React.FC<TShirtMockupProps> = ({
 
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => onSideSwitch?.(side === 'front' ? 'back' : 'front')}
+            onClick={() => {
+              setIsSwipping(true);
+              setTimeout(() => {
+                onSideSwitch?.(side === 'front' ? 'back' : 'front');
+                setTimeout(() => setIsSwipping(false), 200);
+              }, 100);
+            }}
             className="px-4 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors font-medium"
           >
-            {side === 'front' ? 'Back-print!' : 'Front-print!'}
+            {side === 'front' ? 'Back' : 'Front'}
           </button>
-          <span className="text-xs text-gray-500 font-medium">
-            {side === 'front' ? 'Front' : 'Back'}
-          </span>
         </div>
 
 
@@ -170,14 +173,13 @@ const TShirtMockup: React.FC<TShirtMockupProps> = ({
             {side === 'back' && (
               <button
                 onClick={() => {
-                  setIsTransitioning(true);
+                  setIsSwipping(true);
                   setTimeout(() => {
                     onSideSwitch('front');
-                    setIsTransitioning(false);
-                  }, 150);
+                    setTimeout(() => setIsSwipping(false), 200);
+                  }, 100);
                 }}
                 className="absolute left-4 top-1/2 transform -translate-y-1/2 z-40 p-2 bg-white/80 hover:bg-white border border-gray-200 rounded-full shadow-lg transition-all hover:scale-110"
-                title="Switch to front"
               >
                 <ChevronLeft className="w-5 h-5 text-gray-700" />
               </button>
@@ -187,14 +189,13 @@ const TShirtMockup: React.FC<TShirtMockupProps> = ({
             {side === 'front' && (
               <button
                 onClick={() => {
-                  setIsTransitioning(true);
+                  setIsSwipping(true);
                   setTimeout(() => {
                     onSideSwitch('back');
-                    setIsTransitioning(false);
-                  }, 150);
+                    setTimeout(() => setIsSwipping(false), 200);
+                  }, 100);
                 }}
                 className="absolute right-4 top-1/2 transform -translate-y-1/2 z-40 p-2 bg-white/80 hover:bg-white border border-gray-200 rounded-full shadow-lg transition-all hover:scale-110"
-                title="Switch to back"
               >
                 <ChevronRight className="w-5 h-5 text-gray-700" />
               </button>
@@ -203,7 +204,7 @@ const TShirtMockup: React.FC<TShirtMockupProps> = ({
         )}
 
         {/* T-shirt Mockup Display - SHARED CONTAINER FOR BOTH FRONT AND BACK */}
-        <div className={`absolute inset-0 bg-transparent transition-all duration-300 ${isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+        <div className={`absolute inset-0 bg-transparent transition-transform duration-200 ease-out ${isSwipping ? 'transform translate-x-2 opacity-90' : 'transform translate-x-0 opacity-100'}`}>
           {/* Base Shirt */}
           <img
             src={side === 'front' ? "/mockups/tshirt.png" : "/mockups/tshirtbp.png"}
