@@ -131,10 +131,24 @@ const TShirtMockup: React.FC<TShirtMockupProps> = ({
 
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => onSideSwitch?.(side === 'front' ? 'back' : 'front')}
-            className="px-4 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors font-medium"
+            onClick={() => {
+              setIsTransitioning(true);
+              setTimeout(() => {
+                onSideSwitch?.(side === 'front' ? 'back' : 'front');
+                setTimeout(() => setIsTransitioning(false), 100);
+              }, 200);
+            }}
+            disabled={isTransitioning}
+            className="px-4 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
           >
-            {side === 'front' ? 'Back-print!' : 'Front-print!'}
+            {isTransitioning ? (
+              <>
+                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>Switching...</span>
+              </>
+            ) : (
+              <span>{side === 'front' ? 'Back-print!' : 'Front-print!'}</span>
+            )}
           </button>
           <span className="text-xs text-gray-500 font-medium">
             {side === 'front' ? 'Front' : 'Back'}
@@ -172,14 +186,15 @@ const TShirtMockup: React.FC<TShirtMockupProps> = ({
                 onClick={() => {
                   setIsTransitioning(true);
                   setTimeout(() => {
-                    onSideSwitch('front');
-                    setIsTransitioning(false);
-                  }, 150);
+                    onSideSwitch?.('front');
+                    setTimeout(() => setIsTransitioning(false), 100);
+                  }, 200);
                 }}
-                className="absolute left-4 top-1/2 transform -translate-y-1/2 z-40 p-2 bg-white/80 hover:bg-white border border-gray-200 rounded-full shadow-lg transition-all hover:scale-110"
+                disabled={isTransitioning}
+                className="absolute left-4 top-1/2 transform -translate-y-1/2 z-40 p-2 bg-white/90 hover:bg-white border border-gray-200 rounded-full shadow-lg transition-all hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Switch to front"
               >
-                <ChevronLeft className="w-5 h-5 text-gray-700" />
+                <ChevronLeft className={`w-5 h-5 text-gray-700 transition-transform ${isTransitioning ? 'animate-pulse' : ''}`} />
               </button>
             )}
             
@@ -189,21 +204,32 @@ const TShirtMockup: React.FC<TShirtMockupProps> = ({
                 onClick={() => {
                   setIsTransitioning(true);
                   setTimeout(() => {
-                    onSideSwitch('back');
-                    setIsTransitioning(false);
-                  }, 150);
+                    onSideSwitch?.('back');
+                    setTimeout(() => setIsTransitioning(false), 100);
+                  }, 200);
                 }}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 z-40 p-2 bg-white/80 hover:bg-white border border-gray-200 rounded-full shadow-lg transition-all hover:scale-110"
+                disabled={isTransitioning}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 z-40 p-2 bg-white/90 hover:bg-white border border-gray-200 rounded-full shadow-lg transition-all hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Switch to back"
               >
-                <ChevronRight className="w-5 h-5 text-gray-700" />
+                <ChevronRight className={`w-5 h-5 text-gray-700 transition-transform ${isTransitioning ? 'animate-pulse' : ''}`} />
               </button>
             )}
           </>
         )}
 
+        {/* Loading overlay during transition */}
+        {isTransitioning && (
+          <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-30 flex items-center justify-center">
+            <div className="flex flex-col items-center space-y-2">
+              <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-sm text-gray-600 font-medium">Switching view...</span>
+            </div>
+          </div>
+        )}
+
         {/* T-shirt Mockup Display - SHARED CONTAINER FOR BOTH FRONT AND BACK */}
-        <div className={`absolute inset-0 bg-transparent transition-all duration-300 ${isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+        <div className={`absolute inset-0 bg-transparent transition-all duration-500 ease-in-out ${isTransitioning ? 'opacity-0 scale-95 rotate-1' : 'opacity-100 scale-100 rotate-0'}`}>
           {/* Base Shirt */}
           <img
             src={side === 'front' ? "/mockups/tshirt.png" : "/mockups/tshirtbp.png"}

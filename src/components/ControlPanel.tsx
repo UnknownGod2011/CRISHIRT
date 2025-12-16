@@ -581,40 +581,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           </button>
         </div>
         
-        {/* Enhanced Design Option */}
-        <div className="flex items-center space-x-2">
-          <span className="text-xs text-gray-600">Enhanced design</span>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isProcessingUpload || isGenerating || isRefining}
-            className="flex items-center justify-center w-6 h-6 bg-purple-100 border border-purple-300 rounded-full hover:bg-purple-200 hover:border-purple-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
-            title="Upload a sketch for enhanced professional design generation (requires prompt first)"
-          >
-            <Plus className="w-3 h-3 text-purple-600 group-hover:text-purple-800" />
-          </button>
-        </div>
-        
-        {/* Enhanced Colors Option */}
-        <div className="flex items-center space-x-2">
-          <span className="text-xs text-gray-600">Enhanced colors</span>
-          <button
-            onClick={() => {
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = 'image/*';
-              input.onchange = (e) => {
-                const file = (e.target as HTMLInputElement).files?.[0];
-                if (file) handleBrandColorExtraction(file);
-              };
-              input.click();
-            }}
-            disabled={isProcessingUpload || isGenerating || isRefining}
-            className="flex items-center justify-center w-6 h-6 bg-green-100 border border-green-300 rounded-full hover:bg-green-200 hover:border-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
-            title="Upload your brand image for enhanced professional color schemes"
-          >
-            <Plus className="w-3 h-3 text-green-600 group-hover:text-green-800" />
-          </button>
-        </div>
+        {/* Enhanced options removed for cleaner UI */}
         
         {/* Inline Processing Status */}
         {isProcessingUpload && (
@@ -657,24 +624,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </div>
       )}
 
-      {/* Vector Mode Toggle */}
-      <div className="flex items-center justify-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-        <span className="text-sm text-gray-600">Output Format:</span>
-        <button
-          onClick={() => setVectorMode(false)}
-          className={`px-3 py-1 text-xs rounded ${!vectorMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-300'}`}
-        >
-          Raster (PNG)
-        </button>
-        <button
-          onClick={() => {/* Disabled - not working */}}
-          disabled={true}
-          className="px-3 py-1 text-xs rounded bg-gray-200 text-gray-400 border border-gray-300 cursor-not-allowed opacity-50"
-          title="Minimalist Style temporarily disabled"
-        >
-          Minimalist Style (Disabled)
-        </button>
-      </div>
+      {/* Output format removed for cleaner UI */}
 
       {/* Primary Prompt with inline button */}
       <div className="flex space-x-3">
