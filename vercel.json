@@ -11,6 +11,10 @@
     {
       "source": "/api/(.*)",
       "destination": "https://fibo-t5mv.onrender.com/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
