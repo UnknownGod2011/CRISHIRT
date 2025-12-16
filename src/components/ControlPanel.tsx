@@ -29,7 +29,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   // Local state for input fields
   const [prompt, setPrompt] = useState('');
   const [modifyPrompt, setModifyPrompt] = useState('');
-  const [vectorMode, setVectorMode] = useState(false);
+  const [vectorMode] = useState(false);
   
   // Upload state
   const [uploadedDesign, setUploadedDesign] = useState<string | null>(null);
@@ -661,8 +661,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       <div className="flex items-center justify-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
         <span className="text-sm text-gray-600">Output Format:</span>
         <button
-          onClick={() => setVectorMode(false)}
-          className={`px-3 py-1 text-xs rounded ${!vectorMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-300'}`}
+          className="px-3 py-1 text-xs rounded bg-blue-600 text-white"
         >
           Raster (PNG)
         </button>
