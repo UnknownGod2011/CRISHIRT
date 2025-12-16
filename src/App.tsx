@@ -13,11 +13,14 @@ function AppContent() {
   const { tshirtColor, setTshirtColor } = useTshirtState();
   const { currentImage, currentSide, switchSide, setSuccess } = useDesignState();
 
-  // Show fresh start notification
+  // Show fresh start notification only on actual page refresh
   useEffect(() => {
-    setSuccess('🎨 Fresh canvas ready! Start creating your design.');
-    const timer = setTimeout(() => setSuccess(null), 3000);
-    return () => clearTimeout(timer);
+    const isPageRefresh = !sessionStorage.getItem('appInitialized');
+    if (isPageRefresh) {
+      setSuccess('🎨 Fresh canvas ready! Start creating your design.');
+      const timer = setTimeout(() => setSuccess(null), 3000);
+      return () => clearTimeout(timer);
+    }
   }, [setSuccess]);
 
   // Wake up Render backend on app load
@@ -56,11 +59,11 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
       {/* Header */}
-      <header className="bg-white shadow-md sticky top-0 z-50 backdrop-blur-md">
+      <header className="bg-white shadow-md sticky top-0 z-40 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           {/* Brand Name + Logo */}
-          <div className="flex items-center space-x-3 animate-fade-in">
-            <h1 className="text-4xl font-extrabold text-gray-900 tracking-wide animate-text-glow flex items-center space-x-2">
+          <Link to="/" className="flex items-center space-x-3 animate-fade-in cursor-pointer">
+            <h1 className="text-4xl font-extrabold text-gray-900 tracking-wide animate-text-glow flex items-center space-x-2 hover:text-purple-600 transition-colors duration-300">
               <span>Crishirts</span>
               <img
                 src="/assets/logo/Crystal1-transparent.png"
@@ -68,27 +71,30 @@ function AppContent() {
                 className="w-12 h-12 drop-shadow-[0_0_15px_rgba(168,85,247,0.8)] animate-pulse-slow"
               />
             </h1>
-          </div>
+          </Link>
 
           {/* Navigation Links */}
           <nav className="hidden md:flex space-x-8 text-lg font-semibold">
             <Link
               to="/"
-              className="relative text-gray-800 hover:text-purple-600 transition duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-gradient-to-r from-blue-500 to-purple-600 hover:after:w-full after:transition-all after:duration-300"
+              className="relative text-gray-800 hover:text-purple-600 transition duration-300 cursor-pointer z-10 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-gradient-to-r from-blue-500 to-purple-600 hover:after:w-full after:transition-all after:duration-300"
+              onClick={() => console.log('Navigating to home')}
             >
               Create your Tee
             </Link>
 
             <Link
               to="/ar-tryon"
-              className="relative text-gray-800 hover:text-purple-600 transition duration-300 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-gradient-to-r from-blue-500 to-purple-600 hover:after:w-full after:transition-all after:duration-300"
+              className="relative text-gray-800 hover:text-purple-600 transition duration-300 cursor-pointer z-10 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-gradient-to-r from-blue-500 to-purple-600 hover:after:w-full after:transition-all after:duration-300"
+              onClick={() => console.log('Navigating to VR Try-On')}
             >
               VR Try-On
             </Link>
 
             <Link
               to="/collection"
-              className="relative text-gray-800 hover:text-purple-600 transition duration-300 flex items-center space-x-2 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-gradient-to-r from-blue-500 to-purple-600 hover:after:w-full after:transition-all after:duration-300"
+              className="relative text-gray-800 hover:text-purple-600 transition duration-300 cursor-pointer z-10 flex items-center space-x-2 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-gradient-to-r from-blue-500 to-purple-600 hover:after:w-full after:transition-all after:duration-300"
+              onClick={() => console.log('Navigating to collection')}
             >
               <span>Exclusive Collection</span>
               <Sparkles size={20} className="text-yellow-500" />
@@ -96,7 +102,8 @@ function AppContent() {
 
             <Link
               to="/cart"
-              className="relative text-gray-800 hover:text-purple-600 transition duration-300 flex items-center space-x-2 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-gradient-to-r from-blue-500 to-purple-600 hover:after:w-full after:transition-all after:duration-300"
+              className="relative text-gray-800 hover:text-purple-600 transition duration-300 cursor-pointer z-10 flex items-center space-x-2 after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-0 after:bg-gradient-to-r from-blue-500 to-purple-600 hover:after:w-full after:transition-all after:duration-300"
+              onClick={() => console.log('Navigating to cart')}
             >
               <span>Your Cart</span>
               <ShoppingCart size={20} className="text-green-500" />

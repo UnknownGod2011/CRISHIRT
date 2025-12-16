@@ -308,22 +308,76 @@ const AppContext = createContext<{
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  // Clear all state on page refresh - fresh start every time
+  // Load persisted state on mount (but clear on actual page refresh)
   useEffect(() => {
     try {
-      // Clear any existing localStorage data on page load
-      localStorage.removeItem('designState');
-      localStorage.removeItem('tshirtColor');
-      localStorage.removeItem('cartItems');
+      // Check if this is a fresh page load (not just React navigation)
+      const isPageRefresh = !sessionStorage.getItem('appInitialized');
       
-      console.log('🧹 Cleared all persisted state - fresh start!');
+      if (isPageRefresh) {
+        // Fresh page load - clear everything
+        localStorage.removeItem('designState');
+        localStorage.removeItem('tshirtColor');
+        localStorage.removeItem('cartItems');
+        sessionStorage.setItem('appInitialized', 'true');
+        console.log('🧹 Fresh page load - cleared all state');
+      } else {
+        // Internal navigation - restore state
+        console.log('🔄 Internal navigation - restoring state');
+        
+        // Load design state
+        const savedDesignState = localStorage.getItem('designState');
+        if (savedDesignState) {
+          const designState = JSON.parse(savedDesignState);
+          dispatch({ type: 'LOAD_PERSISTED_STATE', payload: designState });
+        }
+
+        // Load T-shirt color
+        const savedTshirtColor = localStorage.getItem('tshirtColor');
+        if (savedTshirtColor) {
+          dispatch({ type: 'SET_TSHIRT_COLOR', payload: savedTshirtColor });
+        }
+
+        // Load cart items
+        const savedCartItems = localStorage.getItem('cartItems');
+        if (savedCartItems) {
+          const cartItems = JSON.parse(savedCartItems);
+          dispatch({ type: 'LOAD_CART_ITEMS', payload: cartItems });
+        }
+      }
     } catch (error) {
-      console.error('Error clearing persisted state:', error);
+      console.error('Error managing persisted state:', error);
     }
   }, []);
 
-  // Note: No persistence effects - everything clears on refresh
-  // This ensures a clean slate every time the user refreshes the page
+  // Persist design state whenever it changes (for internal navigation)
+  useEffect(() => {
+    const designState = {
+      frontDesign: state.frontDesign,
+      backDesign: state.backDesign,
+      frontDesignAlignment: state.frontDesignAlignment,
+      backDesignAlignment: state.backDesignAlignment,
+      currentSide: state.currentSide,
+    };
+    
+    localStorage.setItem('designState', JSON.stringify(designState));
+  }, [
+    state.frontDesign,
+    state.backDesign,
+    state.frontDesignAlignment,
+    state.backDesignAlignment,
+    state.currentSide,
+  ]);
+
+  // Persist T-shirt color
+  useEffect(() => {
+    localStorage.setItem('tshirtColor', state.tshirtColor);
+  }, [state.tshirtColor]);
+
+  // Persist cart items
+  useEffect(() => {
+    localStorage.setItem('cartItems', JSON.stringify(state.cartItems));
+  }, [state.cartItems]);
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>
