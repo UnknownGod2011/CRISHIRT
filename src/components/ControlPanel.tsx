@@ -589,25 +589,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </button>
       </div>
 
-      {/* Sketch Upload Section - Restored */}
-      <div className="flex items-center justify-center space-x-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
-        <span className="text-sm font-medium text-blue-700">Upload your sketch</span>
-        <button
-          onClick={() => {
-            if (!prompt.trim()) {
-              setError('Please enter a design description first, then upload your sketch');
-              return;
-            }
-            fileInputRef.current?.click();
-          }}
-          disabled={isProcessingUpload || isGenerating || isRefining}
-          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Upload a sketch for enhanced design generation"
-        >
-          {isProcessingUpload ? 'Processing...' : 'Upload Sketch'}
-        </button>
-        <span className="text-xs text-blue-600">Converts sketches to professional designs</span>
-      </div>
+
 
       {/* Progress and Status Messages */}
       {(isGenerating || isRefining) && generationProgress && (
