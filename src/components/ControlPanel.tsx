@@ -589,6 +589,22 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </button>
       </div>
 
+      {/* Upload Options */}
+      <div className="flex items-center justify-center space-x-6 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        {/* From file Option */}
+        <div className="flex items-center space-x-2">
+          <span className="text-xs text-gray-600">From file</span>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isProcessingUpload || isGenerating || isRefining}
+            className="flex items-center justify-center w-6 h-6 bg-gray-100 border border-gray-300 rounded-full hover:bg-gray-200 hover:border-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
+            title="Upload a sketch for enhanced design generation"
+          >
+            <Plus className="w-3 h-3 text-gray-600 group-hover:text-gray-800" />
+          </button>
+        </div>
+      </div>
+
       {/* Progress and Status Messages */}
       {(isGenerating || isRefining) && generationProgress && (
         <div className="text-xs text-blue-600 text-center bg-blue-50 p-3 rounded-lg border border-blue-200">
