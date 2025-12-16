@@ -57,7 +57,7 @@ function AppContent() {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
       {/* Header */}
       <header className="bg-white shadow-md sticky top-0 z-40 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -112,9 +112,8 @@ function AppContent() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1">
-        <Routes>
+      {/* Routes */}
+      <Routes>
         <Route
           path="/"
           element={
@@ -161,23 +160,42 @@ function AppContent() {
         <Route path="/ar-tryon" element={<VRTryOnPage />} />
         <Route path="/collection" element={<Collection />} />
         <Route path="/cart" element={<Cart />} />
-        </Routes>
-      </main>
+      </Routes>
 
-      {/* Minimal Footer */}
-      <footer className="bg-gray-900 text-white py-6 mt-16">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <div className="flex items-center justify-center space-x-2 mb-2">
-            <span className="text-lg font-semibold">Crishirts</span>
-            <img
-              src="/assets/logo/Crystal1-transparent.png"
-              alt="Crishirts Logo"
-              className="w-6 h-6"
-            />
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-8 mt-16">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div>
+              <h3 className="text-lg font-semibold mb-3">Crishirts</h3>
+              <p className="text-gray-400 text-sm">
+                Create unique, personalized t-shirt designs using cutting-edge artificial intelligence technology.
+              </p>
+            </div>
+            <div>
+              <h4 className="text-md font-medium mb-3">Features</h4>
+              <ul className="text-gray-400 text-sm space-y-1">
+                <li>• Bria-powered design generation</li>
+                <li>• AR try-on experience</li>
+                <li>• Live mockup preview</li>
+                <li>• T-shirt context optimization</li>
+                <li>• Design refinement system</li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-md font-medium mb-3">Technology</h4>
+              <ul className="text-gray-400 text-sm space-y-1">
+                <li>• Bria API integration</li>
+                <li>• WebRTC AR try-on technology</li>
+                <li>• React + TypeScript</li>
+                <li>• Async generation with status polling</li>
+                <li>• Intelligent prompt optimization</li>
+              </ul>
+            </div>
           </div>
-          <p className="text-gray-400 text-sm">
-            © 2025 Crishirts. AI-powered T-shirt design platform.
-          </p>
+          <div className="border-t border-gray-700 mt-8 pt-6 text-center text-gray-400 text-sm">
+            <p>© 2025 Crishirts. Built with modern web technologies for the future of custom apparel.</p>
+          </div>
         </div>
       </footer>
 

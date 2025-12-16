@@ -135,16 +135,19 @@ const TShirtMockup: React.FC<TShirtMockupProps> = ({
               setIsTransitioning(true);
               setTimeout(() => {
                 onSideSwitch?.(side === 'front' ? 'back' : 'front');
-                setTimeout(() => setIsTransitioning(false), 200);
-              }, 200);
+                setTimeout(() => setIsTransitioning(false), 300);
+              }, 300);
             }}
             disabled={isTransitioning}
-            className="px-4 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
           >
-            {side === 'front' ? 'Back-print!' : 'Front-print!'}
+            {isTransitioning 
+              ? (side === 'front' ? 'Flipping...' : 'Flipping...') 
+              : (side === 'front' ? 'Back-print!' : 'Front-print!')
+            }
           </button>
           <span className="text-xs text-gray-500 font-medium">
-            {side === 'front' ? 'Front' : 'Back'}
+            {side === 'front' ? 'Front View' : 'Back View'}
           </span>
         </div>
 
@@ -167,7 +170,8 @@ const TShirtMockup: React.FC<TShirtMockupProps> = ({
           marginTop: '-120px',
           marginBottom: 0,
           paddingTop: 0,
-          backgroundColor: 'transparent'
+          backgroundColor: 'transparent',
+          perspective: '1000px'
         }}
       >
         {/* Navigation Arrows - Only show relevant arrow */}
@@ -213,9 +217,9 @@ const TShirtMockup: React.FC<TShirtMockupProps> = ({
 
         {/* Enhanced flip animation during transition */}
         {isTransitioning && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center bg-gradient-to-r from-blue-50/80 to-purple-50/80 backdrop-blur-sm">
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-gradient-to-r from-blue-50/80 to-purple-50/80 backdrop-blur-sm rounded-lg">
             <div className="text-center">
-              <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mb-2 mx-auto"></div>
+              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-2 mx-auto"></div>
               <div className="text-sm font-medium text-gray-700 animate-pulse">
                 {side === 'front' ? 'Flipping to back...' : 'Flipping to front...'}
               </div>
@@ -224,10 +228,10 @@ const TShirtMockup: React.FC<TShirtMockupProps> = ({
         )}
 
         {/* T-shirt Mockup Display - SHARED CONTAINER FOR BOTH FRONT AND BACK */}
-        <div className={`absolute inset-0 bg-transparent transition-all duration-300 ${
+        <div className={`absolute inset-0 bg-transparent transition-all duration-500 ${
           isTransitioning 
-            ? 'opacity-30 transform scale-95' 
-            : 'opacity-100 transform scale-100'
+            ? 'opacity-20 transform scale-90 rotate-y-90' 
+            : 'opacity-100 transform scale-100 rotate-y-0'
         }`}>
           {/* Base Shirt */}
           <img
