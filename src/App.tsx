@@ -155,13 +155,36 @@ function AppContent() {
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-8 mt-16">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center">
-            <p className="text-gray-400 text-sm mb-4">
-              Crishirts - Create unique, personalized t-shirt designs with modern technology.
-            </p>
-            <div className="border-t border-gray-700 pt-6">
-              <p className="text-gray-400 text-sm">© 2025 Crishirts. Built with modern web technologies for the future of custom apparel.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div>
+              <h3 className="text-lg font-semibold mb-3">Crishirts</h3>
+              <p className="text-gray-400 text-sm">
+                Crishirts – Create unique, personalized t-shirt designs with modern technology.
+              </p>
             </div>
+            <div>
+              <h4 className="text-md font-medium mb-3">Features</h4>
+              <ul className="text-gray-400 text-sm space-y-1">
+                <li>• Bria-powered design generation</li>
+                <li>• AR try-on experience</li>
+                <li>• Live mockup preview</li>
+                <li>• T-shirt context optimization</li>
+                <li>• Design refinement system</li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-md font-medium mb-3">Technology</h4>
+              <ul className="text-gray-400 text-sm space-y-1">
+                <li>• Bria API integration</li>
+                <li>• WebRTC AR try-on technology</li>
+                <li>• React + TypeScript</li>
+                <li>• Async generation with status polling</li>
+                <li>• Intelligent prompt optimization</li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-gray-700 mt-8 pt-6 text-center text-gray-400 text-sm">
+            <p>© 2025 Crishirts. All rights reserved.</p>
           </div>
         </div>
       </footer>
