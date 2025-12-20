@@ -11,16 +11,7 @@ import { useEffect } from 'react';
 
 function AppContent() {
   const { tshirtColor, setTshirtColor } = useTshirtState();
-  const { currentImage, currentSide, switchSide, setSuccess } = useDesignState();
-
-  // Show fresh start notification only on actual page refresh
-  useEffect(() => {
-    const isPageRefresh = !sessionStorage.getItem('appInitialized');
-    if (isPageRefresh) {
-      // Removed the "Fresh canvas ready" notification
-      sessionStorage.setItem('appInitialized', 'true');
-    }
-  }, [setSuccess]);
+  const { currentImage, currentSide, switchSide } = useDesignState();
 
   // Wake up Render backend on app load
   useEffect(() => {
@@ -164,25 +155,10 @@ function AppContent() {
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-8 mt-16">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div>
-              <h3 className="text-lg font-semibold mb-3">Crishirts</h3>
-              <p className="text-gray-400 text-sm">
-                Create unique, personalized t-shirt designs with modern technology.
-              </p>
-            </div>
-            <div>
-              <h4 className="text-md font-medium mb-3">Features</h4>
-              <ul className="text-gray-400 text-sm space-y-1">
-                <li>• Custom design creation</li>
-                <li>• Live preview</li>
-                <li>• Multiple design options</li>
-                <li>• Easy customization</li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-gray-700 mt-8 pt-6 text-center text-gray-400 text-sm">
-            <p>© 2025 Crishirts. Creating custom apparel made simple.</p>
+          <div className="text-center">
+            <p className="text-gray-400 text-sm">
+              Crishirts - Create unique, personalized t-shirt designs with modern technology.
+            </p>
           </div>
         </div>
       </footer>
