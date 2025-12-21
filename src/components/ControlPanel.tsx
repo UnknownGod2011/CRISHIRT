@@ -577,6 +577,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </div>
       )}
 
+      {/* Processing Indicator (shows when processing but no design preview yet) */}
+      {isProcessingUpload && !uploadedDesign && (
+        <div className="flex items-center justify-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 bg-gray-200 rounded border border-gray-300 flex items-center justify-center">
+              <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            <span className="text-sm text-gray-600">Processing design...</span>
+          </div>
+        </div>
+      )}
+
       {/* Primary Prompt with inline button */}
       <div className="flex space-x-3">
         <input

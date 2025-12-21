@@ -54,7 +54,7 @@ function AppContent() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           {/* Brand Name + Logo */}
           <Link to="/" className="flex items-center space-x-3 animate-fade-in cursor-pointer">
-            <h1 className="text-4xl font-extrabold text-gray-900 tracking-wide animate-text-glow flex items-center space-x-2 hover:text-purple-600 transition-colors duration-300">
+            <h1 className="text-4xl font-extrabold text-gray-900 tracking-wide animate-text-glow flex items-center space-x-2 transition-colors duration-300">
               <span>Crishirts</span>
               <img
                 src="/assets/logo/Crystal1-transparent.png"
