@@ -45,13 +45,45 @@ const products: Product[] = [
   },
   {
     id: 5,
+    name: "Premium Tee: Design One",
+    category: "Exclusive Collection",
+    price: "₹899",
+    image: "/TeeCollection/Tee1.png",
+    available: true,
+  },
+  {
+    id: 6,
+    name: "Premium Tee: Design Two",
+    category: "Exclusive Collection",
+    price: "₹899",
+    image: "/TeeCollection/Tee2.png",
+    available: true,
+  },
+  {
+    id: 7,
+    name: "Premium Tee: Design Three",
+    category: "Exclusive Collection",
+    price: "₹899",
+    image: "/TeeCollection/Tee3.png",
+    available: true,
+  },
+  {
+    id: 8,
+    name: "Premium Tee: Design Four",
+    category: "Exclusive Collection",
+    price: "₹899",
+    image: "/TeeCollection/Tee4.png",
+    available: true,
+  },
+  {
+    id: 9,
     name: "Crystal Series Limited Drop",
     category: "Premium Wear",
     price: "Coming Soon",
     available: false,
   },
   {
-    id: 6,
+    id: 10,
     name: "Aurora Glow Collection",
     category: "AI-Generated Fits",
     price: "Coming Soon",
@@ -89,9 +121,17 @@ const Collection: React.FC = () => {
                 className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100"
               >
                 <div className="relative w-full h-80 bg-gray-50 overflow-hidden flex items-center justify-center">
-                  <div className="text-center">
-                    <p className="text-2xl font-semibold text-gray-400">Coming Soon</p>
-                  </div>
+                  {item.image ? (
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="text-center">
+                      <p className="text-2xl font-semibold text-gray-400">Coming Soon</p>
+                    </div>
+                  )}
                   <div className="absolute top-3 left-3 text-xs bg-black/70 text-white px-2 py-1 rounded-md">
                     {item.category.includes("Oversized") ? "OVERSIZED FIT" : "RELAXED FIT"}
                   </div>
