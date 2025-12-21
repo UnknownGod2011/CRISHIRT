@@ -211,8 +211,6 @@ const VRTryOn: React.FC = () => {
                 {cartItems.length > 0 ? (
                   <div className="space-y-3 max-h-48 overflow-y-auto">
                     {cartItems.map((item) => {
-                      const frontDesign = item.frontDesign?.imageUrl;
-                      const backDesign = item.backDesign?.imageUrl;
                       const isSelected = selectedCartItemId === item.id;
                       
                       return (
