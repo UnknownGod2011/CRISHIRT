@@ -34,6 +34,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   // Upload state
   const [uploadedDesign, setUploadedDesign] = useState<string | null>(null);
   const [isProcessingUpload, setIsProcessingUpload] = useState(false);
+  const [showClipboardLoading, setShowClipboardLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Global state from context
@@ -192,6 +193,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   // Handle clipboard paste with FIBO processing
   const handleClipboardPaste = async () => {
     try {
+      // Start the 10-second loading indicator immediately
+      setShowClipboardLoading(true);
+      setTimeout(() => setShowClipboardLoading(false), 10000); // 10 seconds
+      
       const clipboardItems = await navigator.clipboard.read();
       
       for (const clipboardItem of clipboardItems) {
@@ -206,9 +211,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       }
       
       setError('No image found in clipboard');
+      setShowClipboardLoading(false); // Stop loading if no image found
     } catch (err: any) {
       console.error('Clipboard error:', err);
       setError('Failed to paste from clipboard');
+      setShowClipboardLoading(false); // Stop loading on error
     }
   };
 
@@ -558,33 +565,22 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               alt="Uploaded design" 
               className="w-12 h-12 object-cover rounded border border-gray-300"
             />
+            <span className="text-sm text-gray-600">Design ready for use</span>
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">Design ready for use</span>
-              {isProcessingUpload && (
-                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              <button
+                onClick={() => {
+                  setUploadedDesign(null);
+                  setGeneratedImage('');
+                  setShowClipboardLoading(false); // Stop loading when removed
+                }}
+                className="text-xs text-red-500 hover:text-red-700 underline"
+              >
+                Remove
+              </button>
+              {showClipboardLoading && (
+                <div className="w-3 h-3 border border-blue-600 border-t-transparent rounded-full animate-spin"></div>
               )}
             </div>
-            <button
-              onClick={() => {
-                setUploadedDesign(null);
-                setGeneratedImage('');
-              }}
-              className="text-xs text-red-500 hover:text-red-700 underline"
-            >
-              Remove
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Processing Indicator (shows when processing but no design preview yet) */}
-      {isProcessingUpload && !uploadedDesign && (
-        <div className="flex items-center justify-center p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gray-200 rounded border border-gray-300 flex items-center justify-center">
-              <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-            <span className="text-sm text-gray-600">Processing design...</span>
           </div>
         </div>
       )}
