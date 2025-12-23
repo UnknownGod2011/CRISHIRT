@@ -8280,6 +8280,22 @@ app.post("/api/process-upload", async (req, res) => {
   }
 });
 
+// ====== DEBUG ENDPOINT FOR ENVIRONMENT VARIABLES ======
+app.get("/api/debug/env", (req, res) => {
+  res.json({
+    success: true,
+    environment: {
+      NODE_ENV: process.env.NODE_ENV,
+      PORT: process.env.PORT,
+      BRIA_API_TOKEN_SET: !!process.env.BRIA_API_TOKEN,
+      BRIA_API_TOKEN_LENGTH: process.env.BRIA_API_TOKEN ? process.env.BRIA_API_TOKEN.length : 0,
+      BRIA_API_TOKEN_FIRST_4: process.env.BRIA_API_TOKEN ? process.env.BRIA_API_TOKEN.substring(0, 4) : 'NOT_SET',
+      BRIA_API_TOKEN_LAST_4: process.env.BRIA_API_TOKEN ? process.env.BRIA_API_TOKEN.substring(process.env.BRIA_API_TOKEN.length - 4) : 'NOT_SET'
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
 // ====== START SERVER ======
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Bria T-shirt Design API running on port ${PORT}`);
