@@ -682,7 +682,7 @@ app.post("/api/generate", async (req, res) => {
     backgroundContextManager.preventThemeBackgroundInference(requestId);
 
     // Optimize prompt for T-shirt design with explicit transparent background
-    const optimizedPrompt = `${prompt}, transparent background, clean design suitable for t-shirt printing`;
+    const optimizedPrompt = `${prompt}, transparent background`;
     
     // Call Bria image generation API with HDR/16-bit support
     const generateResult = await briaRequest(`${BRIA_BASE_URL}/image/generate`, {
@@ -5057,13 +5057,13 @@ async function performPromptBasedRefinement(imageUrl, instruction, originalData)
   if (isBackgroundEdit) {
     // For background edits, don't force transparent background
     contextualPrompt = originalData 
-      ? `${originalData.original_prompt}, ${instruction}, clean design suitable for t-shirt printing`
-      : `${instruction}, clean design suitable for t-shirt printing`;
+      ? `${originalData.original_prompt}, ${instruction}`
+      : `${instruction}`;
   } else {
     // For non-background edits, ensure transparent background
     contextualPrompt = originalData 
-      ? `${originalData.original_prompt}, ${instruction}, transparent background, clean design suitable for t-shirt printing`
-      : `${instruction}, transparent background, clean design suitable for t-shirt printing`;
+      ? `${originalData.original_prompt}, ${instruction}, transparent background`
+      : `${instruction}, transparent background`;
   }
   
   console.log(`📝 Using contextual prompt: ${contextualPrompt}`);
@@ -6840,7 +6840,7 @@ app.post("/api/test/complete-multi-edit", async (req, res) => {
     // Step 1: Generate original image
     console.log(`📝 Step 1: Generating original image with prompt: "${test.prompt}"`);
     const generateResult = await briaRequest(`${BRIA_BASE_URL}/image/generate`, {
-      prompt: `${test.prompt}, clean design suitable for t-shirt printing`,
+      prompt: `${test.prompt}, transparent background`,
       sync: false
     });
     
@@ -7331,7 +7331,7 @@ app.post("/api/test/unusual-refinement", async (req, res) => {
     
     // Step 1: Generate original image
     const generateResult = await briaRequest(`${BRIA_BASE_URL}/image/generate`, {
-      prompt: `${test.prompt}, clean design suitable for t-shirt printing`,
+      prompt: `${test.prompt}, transparent background`,
       sync: false
     });
     
@@ -8205,7 +8205,7 @@ app.post("/api/process-upload", async (req, res) => {
     // This allows uploaded designs to be refined just like generated ones
     const pseudoStructuredPrompt = JSON.stringify({
       "prompt": "Uploaded design with transparent background",
-      "style": "clean design suitable for t-shirt printing",
+      "style": "transparent background",
       "background": "transparent background",
       "quality": "high resolution",
       "type": "uploaded_design",
